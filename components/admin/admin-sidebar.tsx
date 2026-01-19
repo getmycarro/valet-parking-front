@@ -1,6 +1,6 @@
-"use client"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+"use client";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   Car,
   LayoutDashboard,
@@ -12,33 +12,38 @@ import {
   ChevronRight,
   BarChart3,
   Clock,
-} from "lucide-react"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 interface AdminSidebarProps {
-  isOpen: boolean
-  onToggle: () => void
+  isOpen: boolean;
+  onToggle: () => void;
 }
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/admin/dashboard" },
-  { icon: Car, label: "Vehículos", href: "/admin/vehiculos" },
+  // { icon: Car, label: "Vehículos", href: "/admin/vehiculos" },
   { icon: Users, label: "Encargados", href: "/admin/encargados" },
-  { icon: CreditCard, label: "Pagos", href: "/admin/pagos" },
+  { icon: CreditCard, label: "Facturación", href: "/admin/facturacion" },
   { icon: ParkingCircle, label: "Espacios", href: "/admin/espacios" },
-  { icon: BarChart3, label: "Reportes", href: "/admin/reportes" },
+  // { icon: BarChart3, label: "Reportes", href: "/admin/reportes" },
   { icon: Clock, label: "Historial", href: "/admin/historial" },
-  { icon: Settings, label: "Configuración", href: "/admin/configuracion" },
-]
+  // { icon: Settings, label: "Configuración", href: "/admin/configuracion" },
+];
 
 export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
-  const pathname = usePathname()
+  const pathname = usePathname();
 
   return (
     <>
       {/* Mobile overlay */}
-      {isOpen && <div className="fixed inset-0 bg-foreground/20 z-40 lg:hidden" onClick={onToggle} />}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-foreground/20 z-40 lg:hidden"
+          onClick={onToggle}
+        />
+      )}
 
       <aside
         className={cn(
@@ -53,14 +58,16 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
             <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
               <Car className="w-6 h-6 text-primary-foreground" />
             </div>
-            {isOpen && <span className="font-bold text-foreground">Valet Admin</span>}
+            {isOpen && (
+              <span className="font-bold text-foreground">Valet Admin</span>
+            )}
           </Link>
         </div>
 
         {/* Navigation */}
         <nav className="p-4 space-y-2">
           {menuItems.map((item) => {
-            const isActive = pathname === item.href
+            const isActive = pathname === item.href;
             return (
               <Link
                 key={item.href}
@@ -73,9 +80,11 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
                 )}
               >
                 <item.icon className="w-5 h-5 flex-shrink-0" />
-                {isOpen && <span className="text-sm font-medium">{item.label}</span>}
+                {isOpen && (
+                  <span className="text-sm font-medium">{item.label}</span>
+                )}
               </Link>
-            )
+            );
           })}
         </nav>
 
@@ -86,9 +95,13 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
           className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-card border-border shadow-sm"
           onClick={onToggle}
         >
-          {isOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          {isOpen ? (
+            <ChevronLeft className="w-4 h-4" />
+          ) : (
+            <ChevronRight className="w-4 h-4" />
+          )}
         </Button>
       </aside>
     </>
-  )
+  );
 }

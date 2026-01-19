@@ -38,8 +38,12 @@ function formatDuration(from: number, to: number) {
   return `${hours}h ${minutes}m`;
 }
 
-export function ActiveVehicles() {
-  const { state } = useStore();
+type Props = {
+  search?: string;
+};
+
+export function ActiveVehicles({ search }: Props) {
+  const { state, entregarAuto } = useStore();
 
   const vehicles = useMemo(
     () =>
@@ -75,6 +79,19 @@ export function ActiveVehicles() {
     [state.autos, state.pagos]
   );
 
+  const filtered =
+    (search && search.trim()) ?
+      vehicles.filter((v) => {
+        const q = search.toLowerCase();
+        return (
+          (v.plate || "").toLowerCase().includes(q) ||
+          (v.brand || "").toLowerCase().includes(q) ||
+          (v.status || "").toLowerCase().includes(q) ||
+          (v.zone || "").toLowerCase().includes(q)
+        );
+      }) :
+      vehicles;
+
   return (
     <Card>
       <CardContent className="p-0">
@@ -88,11 +105,11 @@ export function ActiveVehicles() {
               <TableHead>Duración</TableHead>
               <TableHead>Encargado</TableHead>
               <TableHead>Estado</TableHead>
-              <TableHead className="w-10"></TableHead>
+              <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {vehicles.map((vehicle) => (
+            {filtered.map((vehicle) => (
               <TableRow key={vehicle.id}>
                 <TableCell className="font-mono font-semibold">
                   {vehicle.plate}
@@ -129,19 +146,28 @@ export function ActiveVehicles() {
                     {vehicle.status}
                   </Badge>
                 </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem>Ver detalles</DropdownMenuItem>
-                      <DropdownMenuItem>Procesar salida</DropdownMenuItem>
-                      <DropdownMenuItem>Contactar cliente</DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-2">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem>Ver detalles</DropdownMenuItem>
+                        <DropdownMenuItem>Contactar cliente</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => entregarAuto(vehicle.id)}
+                      className="hover:bg-secondary"
+                    >
+                      Almacenar en historial
+                    </Button>
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
