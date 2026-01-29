@@ -18,7 +18,6 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 
-
 function formatTime(ts: number) {
   const d = new Date(ts);
   const h = String(d.getHours()).padStart(2, "0");
@@ -39,7 +38,7 @@ export function VehiclesDashboardView({
   onQueryChange,
   showSearch = false,
 }: Props) {
-  const { state, entregarAuto, calcularMonto } = useStore();
+  const { state, calcularMonto } = useStore();
   const [filter, setFilter] = useState<FilterType>("activos");
   const [filterOpen, setFilterOpen] = useState(false);
   const [ftTicket, setFtTicket] = useState("");
