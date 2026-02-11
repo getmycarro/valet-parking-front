@@ -2,27 +2,20 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bell, LogOut, Settings, ChevronDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { VehiclesHistoryView } from "@/components/shared/vehicles-history-view";
 import { useAuth } from "@/lib/auth";
 import { AdminPageHeader } from "@/components/shared/admin-page-header";
+import { useStore } from "@/lib/store";
 
-export default function AdminHistorialPage() {
+export default function AdminHistoryPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { user, logout } = useAuth();
   const router = useRouter();
   const [search, setSearch] = useState("");
+  const { state } = useStore();
+
+  const activeCarsCount = state.cars.filter((c) => !c.checkOutAt).length;
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -37,9 +30,10 @@ export default function AdminHistorialPage() {
         }`}
       >
         <AdminPageHeader
-          title="Historial"
-          subtitle="Vehículos entregados y pagos registrados"
-          userName={user?.nombre || "Admin"}
+          title="History"
+          subtitle="Delivered vehicles and recorded payments"
+          userName={user?.name || "Admin"}
+          notificationCount={activeCarsCount}
           onLogout={() => {
             logout();
             router.push("/");

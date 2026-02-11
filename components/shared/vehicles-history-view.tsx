@@ -34,11 +34,10 @@ export function VehiclesHistoryView({
   onQueryChange,
   showSearch = false,
 }: Props) {
-  const { state, calcularMonto } = useStore();
+  const { state, calculateAmount } = useStore();
   const [filterOpen, setFilterOpen] = useState(false);
   const [ftTicket, setFtTicket] = useState("");
   const [ftPlaca, setFtPlaca] = useState("");
-  const [ftNombre, setFtNombre] = useState("");
   const [ftMarca, setFtMarca] = useState("");
   const [ftModelo, setFtModelo] = useState("");
   const [ftMetodo, setFtMetodo] = useState("");
@@ -48,8 +47,8 @@ export function VehiclesHistoryView({
   const [ftHasta, setFtHasta] = useState("");
 
   const entregados = useMemo(
-    () => state.autos.filter((a: CarType) => !!a.checkOutAt),
-    [state.autos],
+    () => state.cars.filter((a: CarType) => !!a.checkOutAt),
+    [state.cars],
   );
 
   const list = useMemo(() => {
@@ -57,20 +56,19 @@ export function VehiclesHistoryView({
     const base = entregados;
     if (!q) return base;
     return base.filter((a) => {
-      const pagos = state.pagos
-        .filter((p: PaymentRecord) => p.carId === a.id)
-        .sort((x, y) => y.fecha - x.fecha);
+      const pagos = state.payments
+        .filter((p: PaymentRecord) => p.parkingRecordId === a.id)
+        .sort((x, y) => y.date - x.date);
       const last = pagos[0];
-      const metodo = state.metodosPago.find((m) => m.id === last?.metodoId);
-      const metodoTipo = (metodo?.tipo || "").toLowerCase();
-      const amount = last ? last.montoUSD : calcularMonto(a);
+      const metodo = state.paymentMethods.find((m) => m.id === last?.methodId);
+      const metodoTipo = (metodo?.type || "").toLowerCase();
+      const amount = last ? last.amountUSD : calculateAmount(a);
       const amountStr = amount.toFixed(2).toLowerCase();
       const amountStrDollar = `$${amount.toFixed(2)}`.toLowerCase();
       return (
-        (a.placa || "").toLowerCase().includes(q) ||
-        (a.nombre || "").toLowerCase().includes(q) ||
-        (a.marca || "").toLowerCase().includes(q) ||
-        (a.modelo || "").toLowerCase().includes(q) ||
+        (a.plate || "").toLowerCase().includes(q) ||
+        (a.brand || "").toLowerCase().includes(q) ||
+        (a.model || "").toLowerCase().includes(q) ||
         (a.id || "").toLowerCase().includes(q) ||
         a.id.slice(-7).toLowerCase().includes(q) ||
         metodoTipo.includes(q) ||
@@ -79,7 +77,7 @@ export function VehiclesHistoryView({
         formatTime(a.checkInAt).toLowerCase().includes(q)
       );
     });
-  }, [entregados, state.pagos, state.metodosPago, query, calcularMonto]);
+  }, [entregados, state.payments, state.paymentMethods, query, calculateAmount]);
 
   const filtered = useMemo(() => {
     const min = Number.parseFloat(ftMontoMin);
@@ -89,7 +87,6 @@ export function VehiclesHistoryView({
     const method = ftMetodo.trim().toLowerCase();
     const tTicket = ftTicket.trim().toLowerCase();
     const tPlaca = ftPlaca.trim().toLowerCase();
-    const tNombre = ftNombre.trim().toLowerCase();
     const tMarca = ftMarca.trim().toLowerCase();
     const tModelo = ftModelo.trim().toLowerCase();
     const fromTs = ftDesde ? Date.parse(ftDesde) : undefined;
@@ -100,24 +97,22 @@ export function VehiclesHistoryView({
     return list.filter((a) => {
       const ticket = a.id.slice(-7).toLowerCase();
       if (tTicket && !ticket.includes(tTicket)) return false;
-      if (tPlaca && !(a.placa || "").toLowerCase().includes(tPlaca))
+      if (tPlaca && !(a.plate || "").toLowerCase().includes(tPlaca))
         return false;
-      if (tNombre && !(a.nombre || "").toLowerCase().includes(tNombre))
+      if (tMarca && !(a.brand || "").toLowerCase().includes(tMarca))
         return false;
-      if (tMarca && !(a.marca || "").toLowerCase().includes(tMarca))
-        return false;
-      if (tModelo && !(a.modelo || "").toLowerCase().includes(tModelo))
+      if (tModelo && !(a.model || "").toLowerCase().includes(tModelo))
         return false;
       if (fromTs !== undefined && (a.checkOutAt || 0) < fromTs) return false;
       if (toTs !== undefined && (a.checkOutAt || 0) > toTs) return false;
-      const pagos = state.pagos
-        .filter((p: PaymentRecord) => p.carId === a.id)
-        .sort((x, y) => y.fecha - x.fecha);
+      const pagos = state.payments
+        .filter((p: PaymentRecord) => p.parkingRecordId === a.id)
+        .sort((x, y) => y.date - x.date);
       const last = pagos[0];
-      const metodo = state.metodosPago.find((m) => m.id === last?.metodoId);
-      const metodoTipo = (metodo?.tipo || "").toLowerCase();
+      const metodo = state.paymentMethods.find((m) => m.id === last?.methodId);
+      const metodoTipo = (metodo?.type || "").toLowerCase();
       if (method && metodoTipo !== method) return false;
-      const amount = last ? last.montoUSD : calcularMonto(a);
+      const amount = last ? last.amountUSD : calculateAmount(a);
       if (hasMin && amount < min) return false;
       if (hasMax && amount > max) return false;
       return true;
@@ -126,7 +121,6 @@ export function VehiclesHistoryView({
     list,
     ftTicket,
     ftPlaca,
-    ftNombre,
     ftMarca,
     ftModelo,
     ftMetodo,
@@ -134,9 +128,9 @@ export function VehiclesHistoryView({
     ftMontoMax,
     ftDesde,
     ftHasta,
-    state.pagos,
-    state.metodosPago,
-    calcularMonto,
+    state.payments,
+    state.paymentMethods,
+    calculateAmount,
   ]);
 
   return (
@@ -191,10 +185,13 @@ export function VehiclesHistoryView({
                   Placa
                 </th>
                 <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                  Nombre
+                  Marca
                 </th>
                 <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
-                  Marca
+                  Modelo
+                </th>
+                <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
+                  Color
                 </th>
                 <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
                   Check-in
@@ -216,31 +213,32 @@ export function VehiclesHistoryView({
                   <td className="p-4 align-middle font-medium">
                     {a.id.slice(-7)}
                   </td>
-                  <td className="p-4 align-middle">{a.placa}</td>
-                  <td className="p-4 align-middle">{a.nombre || "-"}</td>
-                  <td className="p-4 align-middle">{a.marca || "-"}</td>
+                  <td className="p-4 align-middle">{a.plate}</td>
+                  <td className="p-4 align-middle">{a.brand || "-"}</td>
+                  <td className="p-4 align-middle">{a.model || "-"}</td>
+                  <td className="p-4 align-middle">{a.color || "-"}</td>
                   <td className="p-4 align-middle">
                     {formatTime(a.checkInAt)}
                   </td>
                   <td className="p-4 align-middle">
                     {(() => {
-                      const pagos = state.pagos
-                        .filter((p: PaymentRecord) => p.carId === a.id)
-                        .sort((x, y) => y.fecha - x.fecha);
+                      const pagos = state.payments
+                        .filter((p: PaymentRecord) => p.parkingRecordId === a.id)
+                        .sort((x, y) => y.date - x.date);
                       const last = pagos[0];
-                      const metodo = state.metodosPago.find(
-                        (m) => m.id === last?.metodoId,
+                      const metodo = state.paymentMethods.find(
+                        (m) => m.id === last?.methodId,
                       );
-                      return metodo?.tipo || "-";
+                      return metodo?.type || "-";
                     })()}
                   </td>
                   <td className="p-4 align-middle">
                     {(() => {
-                      const pagos = state.pagos
-                        .filter((p: PaymentRecord) => p.carId === a.id)
-                        .sort((x, y) => y.fecha - x.fecha);
+                      const pagos = state.payments
+                        .filter((p: PaymentRecord) => p.parkingRecordId === a.id)
+                        .sort((x, y) => y.date - x.date);
                       const last = pagos[0];
-                      const amount = last ? last.montoUSD : calcularMonto(a);
+                      const amount = last ? last.amountUSD : calculateAmount(a);
                       return `$${amount.toFixed(2)}`;
                     })()}
                   </td>
@@ -249,7 +247,7 @@ export function VehiclesHistoryView({
               {filtered.length === 0 && (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="p-4 text-center text-muted-foreground"
                   >
                     No hay vehículos en historial
@@ -291,20 +289,6 @@ export function VehiclesHistoryView({
                 placeholder="ABC-123"
                 value={ftPlaca}
                 onChange={(e) => setFtPlaca(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <label
-                htmlFor="fNombre"
-                className="text-sm text-muted-foreground"
-              >
-                Nombre
-              </label>
-              <Input
-                id="fNombre"
-                placeholder="Cliente"
-                value={ftNombre}
-                onChange={(e) => setFtNombre(e.target.value)}
               />
             </div>
             <div className="space-y-1">
@@ -365,9 +349,9 @@ export function VehiclesHistoryView({
               >
                 <option value="">Todos</option>
                 <option value="zelle">Zelle</option>
-                <option value="pago movil">Pago Movil</option>
+                <option value="mobile_payment">Pago Movil</option>
                 <option value="binance">Binance</option>
-                <option value="efectivo">Efectivo</option>
+                <option value="cash">Efectivo</option>
               </select>
             </div>
             <div className="space-y-1">

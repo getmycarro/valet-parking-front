@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, LogOut, Settings, ChevronDown } from "lucide-react";
+import { LogOut, Settings, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -11,11 +11,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { NotificationBell } from "@/components/shared/notification-bell";
 
 type Props = {
   title: string;
   subtitle?: string;
   userName: string;
+  notificationCount?: number;
   onLogout: () => void;
 };
 
@@ -23,6 +25,7 @@ export function AdminPageHeader({
   title,
   subtitle,
   userName,
+  notificationCount = 0,
   onLogout,
 }: Props) {
   return (
@@ -40,10 +43,7 @@ export function AdminPageHeader({
             size="icon"
             className="relative bg-transparent"
           >
-            <Bell className="w-4 h-4" />
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center">
-              3
-            </span>
+            <NotificationBell count={notificationCount} />
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -61,16 +61,16 @@ export function AdminPageHeader({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuLabel>Mi Cuenta</DropdownMenuLabel>
+              <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem>
                 <Settings className="w-4 h-4 mr-2" />
-                Configuración
+                Settings
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem className="text-destructive" onClick={onLogout}>
                 <LogOut className="w-4 h-4 mr-2" />
-                Cerrar Sesión
+                Logout
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

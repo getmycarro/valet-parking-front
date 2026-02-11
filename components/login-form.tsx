@@ -12,7 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { useAuth } from "@/lib/auth"
 
 interface LoginFormProps {
-  userType: "encargado" | "admin"
+  userType: "attendant" | "admin"
 }
 
 export function LoginForm({ userType }: LoginFormProps) {
@@ -26,22 +26,27 @@ export function LoginForm({ userType }: LoginFormProps) {
     remember: false,
   })
 
+  const [error, setError] = useState<string | null>(null)
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError(null)
 
-    const baseName =
-      formData.email.trim() ||
-      (userType === "admin" ? "Administrador" : "Encargado")
+    try {
+      await login(formData.email.trim(), formData.password)
 
-    login(baseName, userType)
-
-    setIsLoading(false)
-
-    if (userType === "encargado") {
-      router.push("/encargado/dashboard")
-    } else {
-      router.push("/admin/dashboard")
+      if (userType === "attendant") {
+        router.push("/attendant/dashboard")
+      } else {
+        router.push("/admin/dashboard")
+      }
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.message || err?.message || "Invalid credentials"
+      setError(typeof message === "string" ? message : "Invalid credentials")
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -54,12 +59,12 @@ export function LoginForm({ userType }: LoginFormProps) {
     <form onSubmit={handleSubmit} className="space-y-5">
       <div className="space-y-2">
         <Label htmlFor="email" className="text-foreground">
-          Correo electrónico
+          Email
         </Label>
         <Input
           id="email"
           type="email"
-          placeholder="correo@ejemplo.com"
+          placeholder="email@example.com"
           value={formData.email}
           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
           required
@@ -69,7 +74,7 @@ export function LoginForm({ userType }: LoginFormProps) {
 
       <div className="space-y-2">
         <Label htmlFor="password" className="text-foreground">
-          Contraseña
+          Password
         </Label>
         <div className="relative">
           <Input
@@ -99,30 +104,34 @@ export function LoginForm({ userType }: LoginFormProps) {
             onCheckedChange={(checked) => setFormData({ ...formData, remember: checked as boolean })}
           />
           <Label htmlFor="remember" className="text-sm text-muted-foreground cursor-pointer">
-            Recordarme
+            Remember me
           </Label>
         </div>
         <button type="button" className="text-sm text-primary hover:underline">
-          ¿Olvidaste tu contraseña?
+          Forgot password?
         </button>
       </div>
+
+      {error && (
+        <p className="text-sm text-red-500 text-center">{error}</p>
+      )}
 
       <Button type="submit" disabled={isLoading} className={`w-full h-11 ${buttonClass}`}>
         {isLoading ? (
           <>
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            Iniciando sesión...
+            Signing in...
           </>
         ) : (
-          "Iniciar Sesión"
+          "Sign In"
         )}
       </Button>
 
-      {userType === "encargado" && (
+      {userType === "attendant" && (
         <p className="text-center text-sm text-muted-foreground">
-          ¿No tienes cuenta?{" "}
+          Don't have an account?{" "}
           <button type="button" className="text-primary hover:underline">
-            Contacta al administrador
+            Contact administrator
           </button>
         </p>
       )}

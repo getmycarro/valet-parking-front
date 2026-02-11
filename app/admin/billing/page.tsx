@@ -22,11 +22,15 @@ import { RevenueChart } from "@/components/admin/revenue-chart";
 import { RecentTransactions } from "@/components/admin/recent-transactions";
 import { useAuth } from "@/lib/auth";
 import { AdminPageHeader } from "@/components/shared/admin-page-header";
+import { useStore } from "@/lib/store";
 
-export default function AdminFacturacionPage() {
+export default function AdminBillingPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { user, logout } = useAuth();
   const router = useRouter();
+  const { state } = useStore();
+
+  const activeCarsCount = state.cars.filter((c) => !c.checkOutAt).length;
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -41,9 +45,10 @@ export default function AdminFacturacionPage() {
         }`}
       >
         <AdminPageHeader
-          title="Facturación"
-          subtitle="Gestión de ingresos y transacciones"
-          userName={user?.nombre || "Admin"}
+          title="Billing"
+          subtitle="Revenue and transaction management"
+          userName={user?.name || "Admin"}
+          notificationCount={activeCarsCount}
           onLogout={() => {
             logout();
             router.push("/");
@@ -54,22 +59,22 @@ export default function AdminFacturacionPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <div>
-                <CardTitle>Ingresos</CardTitle>
-                <CardDescription>Últimos 7 días</CardDescription>
+                <CardTitle>Revenue</CardTitle>
+                <CardDescription>Last 7 days</CardDescription>
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" size="sm">
                     <Calendar className="w-4 h-4 mr-2" />
-                    Esta Semana
+                    This Week
                     <ChevronDown className="w-4 h-4 ml-2" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                  <DropdownMenuItem>Hoy</DropdownMenuItem>
-                  <DropdownMenuItem>Esta Semana</DropdownMenuItem>
-                  <DropdownMenuItem>Este Mes</DropdownMenuItem>
-                  <DropdownMenuItem>Este Año</DropdownMenuItem>
+                  <DropdownMenuItem>Today</DropdownMenuItem>
+                  <DropdownMenuItem>This Week</DropdownMenuItem>
+                  <DropdownMenuItem>This Month</DropdownMenuItem>
+                  <DropdownMenuItem>This Year</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </CardHeader>
@@ -81,20 +86,20 @@ export default function AdminFacturacionPage() {
           <div className="flex items-center justify-between">
             <div className="space-y-1">
               <h2 className="text-lg font-semibold text-foreground">
-                Transacciones recientes
+                Recent Transactions
               </h2>
               <p className="text-sm text-muted-foreground">
-                Últimos pagos registrados
+                Latest recorded payments
               </p>
             </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm">
                 <Filter className="w-4 h-4 mr-2" />
-                Filtrar
+                Filter
               </Button>
               <Button variant="outline" size="sm">
                 <Download className="w-4 h-4 mr-2" />
-                Exportar
+                Export
               </Button>
             </div>
           </div>

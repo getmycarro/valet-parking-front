@@ -3,10 +3,10 @@
 import { Cell, Pie, PieChart, ResponsiveContainer, Legend, Tooltip } from "recharts"
 
 const data = [
-  { name: "Zona A", value: 85, color: "oklch(0.45 0.2 250)" },
-  { name: "Zona B", value: 72, color: "oklch(0.55 0.18 250)" },
-  { name: "Zona C", value: 65, color: "oklch(0.65 0.15 250)" },
-  { name: "Zona VIP", value: 90, color: "oklch(0.35 0.22 250)" },
+  { name: "Zone A", value: 85, color: "oklch(0.45 0.2 250)" },
+  { name: "Zone B", value: 72, color: "oklch(0.55 0.18 250)" },
+  { name: "Zone C", value: 65, color: "oklch(0.65 0.15 250)" },
+  { name: "VIP Zone", value: 90, color: "oklch(0.35 0.22 250)" },
 ]
 
 export function OccupancyChart() {
@@ -25,7 +25,7 @@ export function OccupancyChart() {
               border: "1px solid oklch(0.88 0.02 240)",
               borderRadius: "8px",
             }}
-            formatter={(value: number) => [`${value}%`, "Ocupación"]}
+            formatter={(value: number) => [`${value}%`, "Occupancy"]}
           />
           <Legend
             verticalAlign="bottom"

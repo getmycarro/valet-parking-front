@@ -3,13 +3,13 @@
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts"
 
 const data = [
-  { day: "Lun", ingresos: 8500 },
-  { day: "Mar", ingresos: 10200 },
-  { day: "Mie", ingresos: 9800 },
-  { day: "Jue", ingresos: 11400 },
-  { day: "Vie", ingresos: 14200 },
-  { day: "Sab", ingresos: 15800 },
-  { day: "Dom", ingresos: 12450 },
+  { day: "Mon", revenue: 8500 },
+  { day: "Tue", revenue: 10200 },
+  { day: "Wed", revenue: 9800 },
+  { day: "Thu", revenue: 11400 },
+  { day: "Fri", revenue: 14200 },
+  { day: "Sat", revenue: 15800 },
+  { day: "Sun", revenue: 12450 },
 ]
 
 export function RevenueChart() {
@@ -18,7 +18,7 @@ export function RevenueChart() {
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
           <defs>
-            <linearGradient id="colorIngresos" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="oklch(0.45 0.2 250)" stopOpacity={0.3} />
               <stop offset="95%" stopColor="oklch(0.45 0.2 250)" stopOpacity={0} />
             </linearGradient>
@@ -38,15 +38,15 @@ export function RevenueChart() {
               borderRadius: "8px",
               boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
             }}
-            formatter={(value: number) => [`$${value.toLocaleString()}`, "Ingresos"]}
+            formatter={(value: number) => [`$${value.toLocaleString()}`, "Revenue"]}
           />
           <Area
             type="monotone"
-            dataKey="ingresos"
+            dataKey="revenue"
             stroke="oklch(0.45 0.2 250)"
             strokeWidth={2}
             fillOpacity={1}
-            fill="url(#colorIngresos)"
+            fill="url(#colorRevenue)"
           />
         </AreaChart>
       </ResponsiveContainer>

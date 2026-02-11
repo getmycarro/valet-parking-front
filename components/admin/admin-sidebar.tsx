@@ -23,13 +23,13 @@ interface AdminSidebarProps {
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/admin/dashboard" },
-  // { icon: Car, label: "Vehículos", href: "/admin/vehiculos" },
-  { icon: Users, label: "Encargados", href: "/admin/encargados" },
-  { icon: CreditCard, label: "Facturación", href: "/admin/facturacion" },
-  { icon: ParkingCircle, label: "Espacios", href: "/admin/espacios" },
-  // { icon: BarChart3, label: "Reportes", href: "/admin/reportes" },
-  { icon: Clock, label: "Historial", href: "/admin/historial" },
-  // { icon: Settings, label: "Configuración", href: "/admin/configuracion" },
+  // { icon: Car, label: "Vehicles", href: "/admin/vehicles" },
+  { icon: Users, label: "Employees", href: "/admin/employees" },
+  { icon: CreditCard, label: "Billing", href: "/admin/billing" },
+  // { icon: ParkingCircle, label: "Spaces", href: "/admin/spaces" },
+  // { icon: BarChart3, label: "Reports", href: "/admin/reports" },
+  { icon: Clock, label: "History", href: "/admin/history" },
+  // { icon: Settings, label: "Settings", href: "/admin/settings" },
 ];
 
 export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {

@@ -44,7 +44,7 @@ function formatRelativeTime(ts: number) {
 }
 
 function mapEstado(estado: PaymentStatus): TxStatus {
-  return estado === "recibido" ? "completado" : "pendiente";
+  return estado === "received" ? "completado" : "pendiente";
 }
 
 export function RecentTransactions() {
@@ -52,28 +52,27 @@ export function RecentTransactions() {
 
   const transactions: Tx[] = useMemo(
     () =>
-      state.pagos
+      state.payments
         .slice()
-        .sort((a: PaymentRecord, b: PaymentRecord) => b.fecha - a.fecha)
+        .sort((a: PaymentRecord, b: PaymentRecord) => b.date - a.date)
         .slice(0, 10)
         .map((p: PaymentRecord) => {
-          const car = state.autos.find((a: Car) => a.id === p.carId);
-          const metodo = state.metodosPago.find(
-            (m: PaymentMethod) => m.id === p.metodoId
+          const car = state.cars.find((a: Car) => a.id === p.parkingRecordId);
+          const metodo = state.paymentMethods.find(
+            (m: PaymentMethod) => m.id === p.methodId
           );
-          const customerName = car?.nombre || "Cliente";
 
           return {
             id: p.id.slice(-8),
-            vehicle: car?.placa || "N/A",
-            customer: customerName,
-            amount: `$${p.montoUSD.toFixed(2)}`,
-            method: metodo?.tipo || "Otro",
-            status: mapEstado(p.estado),
-            time: formatRelativeTime(p.fecha),
+            vehicle: car?.plate || "N/A",
+            customer: car?.plate || "N/A",
+            amount: `$${p.amountUSD.toFixed(2)}`,
+            method: metodo?.type || "Otro",
+            status: mapEstado(p.status),
+            time: formatRelativeTime(p.date),
           };
         }),
-    [state.pagos, state.autos, state.metodosPago]
+    [state.payments, state.cars, state.paymentMethods]
   );
 
   return (

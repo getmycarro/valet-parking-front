@@ -9,7 +9,7 @@ import { VehiclesDashboardView } from "@/components/shared/vehicles-dashboard-vi
 import { VehicleRegistrationForm } from "@/components/shared/vehicle-registration-form";
 import { Modal } from "@/components/ui/modal";
 
-export default function EncargadoDashboardPage() {
+export default function AttendantDashboardPage() {
   const { user } = useAuth();
   const [regOpen, setRegOpen] = useState(false);
 
@@ -19,26 +19,26 @@ export default function EncargadoDashboardPage() {
         <>
           <div className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground">
             <Car className="w-4 h-4" />
-            <span>Resumen</span>
+            <span>Overview</span>
           </div>
         </>
       }
       userInfo={{
-        name: user?.nombre || "Encargado",
-        role: "Encargado",
+        name: user?.name || "Attendant",
+        role: "Attendant",
       }}
     >
       <div className="space-y-6">
         <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
           <Car className="w-5 h-5 text-primary" />
-          Panel del Encargado
+          Attendant Dashboard
         </h1>
 
         <div className="flex items-center justify-between">
           <div />
           <div className="flex items-center gap-2">
             <Button onClick={() => setRegOpen(true)} className="uppercase">
-              Registrar vehículo
+              Register Vehicle
             </Button>
             <Button
               variant="outline"
@@ -56,8 +56,8 @@ export default function EncargadoDashboardPage() {
         <Modal
           isOpen={regOpen}
           onClose={() => setRegOpen(false)}
-          title="Registrar vehículo"
-          description="Completa los datos para registrar el vehículo"
+          title="Register Vehicle"
+          description="Complete vehicle details"
           size="lg"
         >
           <VehicleRegistrationForm onSubmitted={() => setRegOpen(false)} />

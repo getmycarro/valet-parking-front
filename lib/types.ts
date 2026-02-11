@@ -1,55 +1,64 @@
-export type Employee = {
+export type ValetInfo = {
   id: string;
-  nombre: string;
-  cedula: string;
-  fotoUrl?: string;
+  name: string;
+  email?: string;
+  idNumber?: string;
 };
 
 export type Car = {
   id: string;
-  nombre?: string;
-  telefono?: string;
-  correo?: string;
-  marca?: string;
-  placa: string;
-  modelo?: string;
+  plate: string;
+  brand?: string;
+  model?: string;
   color?: string;
   checkInAt: number;
   checkOutAt?: number;
-  valetId?: string;
-  qrData?: string;
+  checkInValetId?: string;
+  checkOutValetId?: string;
+  checkInValet?: ValetInfo;
+  checkOutValet?: ValetInfo;
+  ownerId?: string;
+  // qrData?: string; // QR deshabilitado
 };
 
-export type PaymentMethodType = "zelle" | "pago_movil" | "binance";
-export type ValidationType = "manual" | "automatica";
+export type PaymentMethodType = "zelle" | "mobile_payment" | "binance" | "cash" | "card";
+export type ValidationType = "manual" | "automatic";
 
 export type PaymentMethod = {
   id: string;
-  tipo: PaymentMethodType;
-  validacion: ValidationType;
-  nombre: string;
-  detalles?: Record<string, string>;
-  comisionMensualPorcentaje?: number;
+  type: PaymentMethodType;
+  name: string;
+  form: string;
+  isActive: boolean;
 };
 
-export type ChargeMethodType = "por_hora" | "tasa_fija";
+export type BillingType = "hourly" | "flat_rate";
 
 export type Settings = {
-  cobro: {
-    tipo: ChargeMethodType;
-    tarifa: number;
+  billing: {
+    type: BillingType;
+    rate: number;
   };
-  propinaHabilitada: boolean;
+  tipEnabled: boolean;
 };
 
-export type PaymentStatus = "pendiente" | "recibido";
+export type PaymentStatus = "pending" | "received" | "cancelled";
 
 export type PaymentRecord = {
   id: string;
-  carId: string;
-  metodoId: string;
-  montoUSD: number;
-  propina: boolean;
-  fecha: number;
-  estado: PaymentStatus;
+  parkingRecordId: string;
+  methodId: string;
+  amountUSD: number;
+  tip: number;
+  date: number;
+  status: PaymentStatus;
+};
+
+export type Employee = {
+  id: string;
+  name: string;
+  idNumber: string;
+  type: 'VALET' | 'ATTENDANT';
+  email?: string;
+  photoUrl?: string;
 };

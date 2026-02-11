@@ -20,63 +20,48 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useStore } from "@/lib/store";
+import { formatTime, formatDuration } from "@/lib/utils/time";
 import type { Car, PaymentRecord } from "@/lib/types";
-
-function formatTime(ts: number) {
-  const d = new Date(ts);
-  const h = String(d.getHours()).padStart(2, "0");
-  const m = String(d.getMinutes()).padStart(2, "0");
-  return `${h}:${m}`;
-}
-
-function formatDuration(from: number, to: number) {
-  const diffMs = Math.max(0, to - from);
-  const totalMinutes = Math.floor(diffMs / (1000 * 60));
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  if (hours === 0) return `${minutes}m`;
-  return `${hours}h ${minutes}m`;
-}
 
 type Props = {
   search?: string;
 };
 
 export function ActiveVehicles({ search }: Props) {
-  const { state, entregarAuto } = useStore();
+  const { state, deliverCar } = useStore();
 
   const vehicles = useMemo(
     () =>
-      state.autos
+      state.cars
         .filter((a: Car) => !a.checkOutAt)
         .map((a: Car) => {
-          const pagos = state.pagos.filter(
-            (p: PaymentRecord) => p.carId === a.id
+          const payments = state.payments.filter(
+            (p: PaymentRecord) => p.parkingRecordId === a.id
           );
-          const tienePendiente = pagos.some(
-            (p: PaymentRecord) => p.estado === "pendiente"
+          const hasPending = payments.some(
+            (p: PaymentRecord) => p.status === "pending"
           );
-          const tieneRecibido = pagos.some(
-            (p: PaymentRecord) => p.estado === "recibido"
+          const hasReceived = payments.some(
+            (p: PaymentRecord) => p.status === "received"
           );
-          const status = tienePendiente
-            ? "por cobrar"
-            : tieneRecibido
-            ? "pagado"
-            : "activo";
+          const status = hasPending
+            ? "pending payment"
+            : hasReceived
+            ? "paid"
+            : "active";
 
           return {
             id: a.id,
-            plate: a.placa,
-            brand: [a.marca, a.modelo].filter(Boolean).join(" ") || "Sin datos",
+            plate: a.plate,
+            brand: [a.brand, a.model].filter(Boolean).join(" ") || "No data",
             zone: "N/A",
             entryTime: formatTime(a.checkInAt),
             duration: formatDuration(a.checkInAt, Date.now()),
-            attendant: "N/D",
+            attendant: a.checkInValet?.name || "N/A",
             status,
           };
         }),
-    [state.autos, state.pagos]
+    [state.cars, state.payments]
   );
 
   const filtered =
@@ -98,14 +83,14 @@ export function ActiveVehicles({ search }: Props) {
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
-              <TableHead>Placa</TableHead>
-              <TableHead>Vehículo</TableHead>
-              <TableHead>Zona</TableHead>
-              <TableHead>Entrada</TableHead>
-              <TableHead>Duración</TableHead>
-              <TableHead>Encargado</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead className="text-right">Acciones</TableHead>
+              <TableHead>Plate</TableHead>
+              <TableHead>Vehicle</TableHead>
+              <TableHead>Zone</TableHead>
+              <TableHead>Check-in</TableHead>
+              <TableHead>Duration</TableHead>
+              <TableHead>Attendant</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -131,14 +116,14 @@ export function ActiveVehicles({ search }: Props) {
                 <TableCell>
                   <Badge
                     variant={
-                      vehicle.status === "activo"
+                      vehicle.status === "active"
                         ? "default"
-                        : vehicle.status === "por cobrar"
+                        : vehicle.status === "pending payment"
                         ? "secondary"
                         : "outline"
                     }
                     className={
-                      vehicle.status === "por cobrar"
+                      vehicle.status === "pending payment"
                         ? "bg-amber-100 text-amber-800 hover:bg-amber-100"
                         : ""
                     }
@@ -155,17 +140,17 @@ export function ActiveVehicles({ search }: Props) {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem>Ver detalles</DropdownMenuItem>
-                        <DropdownMenuItem>Contactar cliente</DropdownMenuItem>
+                        <DropdownMenuItem>View details</DropdownMenuItem>
+                        <DropdownMenuItem>Contact customer</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => entregarAuto(vehicle.id)}
+                      onClick={() => deliverCar(vehicle.id)}
                       className="hover:bg-secondary"
                     >
-                      Almacenar en historial
+                      Move to history
                     </Button>
                   </div>
                 </TableCell>

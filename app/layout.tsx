@@ -8,8 +8,8 @@ import { Providers } from "@/components/providers"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Valet Parking - Sistema de Gestión",
-  description: "Sistema de gestión de Valet Parking",
+  title: "Valet Parking - Management System",
+  description: "Valet Parking Management System",
   generator: "v0.app",
   icons: {
     icon: [
@@ -36,7 +36,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="es">
+    <html lang="en">
       <body className={`${inter.className} antialiased`}>
         <Providers>{children}</Providers>
         <Analytics />
