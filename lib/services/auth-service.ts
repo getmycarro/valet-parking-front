@@ -1,6 +1,6 @@
 import { apiClient } from '../api-client';
 
-export type UserRole = 'ADMIN' | 'ATTENDANT' | 'CLIENT';
+export type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'MANAGER' | 'ATTENDANT';
 
 export interface LoginRequest {
   email: string;

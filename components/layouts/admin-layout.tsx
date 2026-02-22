@@ -1,73 +1,62 @@
 "use client"
 import { useState, type ReactNode } from "react"
 import { AdminSidebar } from "@/components/admin/admin-sidebar"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { Menu, LogOut } from "lucide-react"
+import { AdminPageHeader } from "@/components/shared/admin-page-header"
 import { useAuth } from "@/lib/auth"
 import { useRouter } from "next/navigation"
+import { useStore } from "@/lib/store"
 
 interface AdminLayoutProps {
   children: ReactNode
-  title?: string
+  title: string
+  subtitle?: string
   actions?: ReactNode
 }
 
-export function AdminLayout({ children, title, actions }: AdminLayoutProps) {
+export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const { logout } = useAuth()
+  const { user, logout } = useAuth()
   const router = useRouter()
+  const { state } = useStore()
+
+  const activeCarsCount = state.cars.filter((c) => !c.checkOutAt).length
 
   const handleLogout = () => {
     logout()
-    router.push("/")
+    router.push("/login")
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <AdminSidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
+    <div className="min-h-screen bg-background flex">
+      <AdminSidebar
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen((v) => !v)}
+        userRole={user?.role || "admin"}
+      />
 
-      <div
-        className={cn(
-          "transition-all duration-300",
-          sidebarOpen ? "lg:pl-64" : "lg:pl-20"
-        )}
+      <main
+        className={`flex-1 transition-all duration-300 ${
+          sidebarOpen ? "lg:ml-64" : "lg:ml-20"
+        }`}
       >
-        {/* Header */}
-        <header className="sticky top-0 z-30 border-b border-border bg-card">
-          <div className="flex h-16 items-center justify-between px-4 lg:px-6">
-            <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="lg:hidden"
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
-              {title && <h1 className="text-xl font-semibold">{title}</h1>}
-            </div>
+        <AdminPageHeader
+          title={title}
+          subtitle={subtitle}
+          userName={user?.name || "Admin"}
+          notificationCount={activeCarsCount}
+          onLogout={handleLogout}
+        />
 
-            <div className="flex items-center gap-2">
+        <div className="p-6 space-y-6">
+          {actions && (
+            <div className="flex items-center justify-between">
+              <div />
               {actions}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleLogout}
-                className="gap-2"
-              >
-                <LogOut className="h-4 w-4" />
-                <span className="hidden sm:inline">Logout</span>
-              </Button>
             </div>
-          </div>
-        </header>
-
-        {/* Main content */}
-        <main className="p-4 lg:p-6">
+          )}
           {children}
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   )
 }

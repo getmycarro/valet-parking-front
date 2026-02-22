@@ -18,9 +18,35 @@ export const STORAGE_KEYS = {
  * User roles
  */
 export const USER_ROLES = {
+  SUPER_ADMIN: "super_admin",
   ADMIN: "admin",
+  MANAGER: "manager",
   ATTENDANT: "attendant",
 } as const;
+
+export type UserRoleValue = (typeof USER_ROLES)[keyof typeof USER_ROLES];
+
+/**
+ * Route access per role
+ */
+export const ROLE_ROUTE_ACCESS: Record<string, UserRoleValue[]> = {
+  "/admin/dashboard": ["super_admin", "admin", "manager"],
+  "/admin/employees": ["super_admin", "admin"],
+  "/admin/billing": ["super_admin", "admin", "manager"],
+  "/admin/companies": ["super_admin"],
+  "/admin/users": ["super_admin"],
+  "/attendant/dashboard": ["attendant"],
+};
+
+/**
+ * Default redirect after login per role
+ */
+export const ROLE_DEFAULT_REDIRECT: Record<UserRoleValue, string> = {
+  super_admin: "/admin/dashboard",
+  admin: "/admin/dashboard",
+  manager: "/admin/dashboard",
+  attendant: "/attendant/dashboard",
+};
 
 /**
  * Payment types
@@ -31,14 +57,6 @@ export const PAYMENT_TYPES = {
   BINANCE: "binance",
   CASH: "cash",
   CARD: "card",
-} as const;
-
-/**
- * Billing types
- */
-export const BILLING_TYPES = {
-  HOURLY: "hourly",
-  FLAT_RATE: "flat_rate",
 } as const;
 
 /**
@@ -57,28 +75,6 @@ export const PAYMENT_STATUSES = {
   RECEIVED: "received",
   CANCELLED: "cancelled",
 } as const;
-
-/**
- * Default settings
- */
-export const DEFAULT_SETTINGS = {
-  billing: {
-    type: BILLING_TYPES.HOURLY as "hourly",
-    rate: 3,
-  },
-  tipEnabled: true,
-} as const;
-
-// QR deshabilitado
-// /**
-//  * QR code version
-//  */
-// export const QR_CODE_VERSION = 1;
-
-// /**
-//  * QR code type identifier
-//  */
-// export const QR_CODE_TYPE = "valet_ticket";
 
 /**
  * Default notification count for active vehicles

@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { useEffect, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -12,28 +12,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useStore } from "@/lib/store";
-import type {
-  Car,
-  PaymentMethod,
-  PaymentRecord,
-  PaymentStatus,
-} from "@/lib/types";
+import { Input } from "@/components/ui/input";
+import { Loader2, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { paymentsService, type Payment, type PaymentsListResponse } from "@/lib/services/payments-service";
 
-type TxStatus = "completado" | "pendiente";
-
-type Tx = {
-  id: string;
-  vehicle: string;
-  customer: string;
-  amount: string;
-  method: string;
-  status: TxStatus;
-  time: string;
-};
-
-function formatRelativeTime(ts: number) {
-  const diffMs = Date.now() - ts;
+function formatRelativeTime(ts: string) {
+  const diffMs = Date.now() - new Date(ts).getTime();
   const minutes = Math.floor(diffMs / (1000 * 60));
   if (minutes < 1) return "Hace instantes";
   if (minutes < 60) return `Hace ${minutes} min`;
@@ -43,99 +27,267 @@ function formatRelativeTime(ts: number) {
   return `Hace ${days} d`;
 }
 
-function mapEstado(estado: PaymentStatus): TxStatus {
-  return estado === "received" ? "completado" : "pendiente";
+function mapStatus(status: string): "completado" | "pendiente" | "cancelado" {
+  if (status === "RECEIVED") return "completado";
+  if (status === "CANCELLED") return "cancelado";
+  return "pendiente";
 }
 
-export function RecentTransactions() {
-  const { state } = useStore();
+type Props = {
+  companyId?: string | null;
+  onMetaUpdate?: (meta: {
+    pending: number;
+    cancelled: number;
+    completed: number;
+    all: number;
+    pendingAmountUSD: number;
+    cancelledAmountUSD: number;
+    completedAmountUSD: number;
+  }) => void;
+};
 
-  const transactions: Tx[] = useMemo(
-    () =>
-      state.payments
-        .slice()
-        .sort((a: PaymentRecord, b: PaymentRecord) => b.date - a.date)
-        .slice(0, 10)
-        .map((p: PaymentRecord) => {
-          const car = state.cars.find((a: Car) => a.id === p.parkingRecordId);
-          const metodo = state.paymentMethods.find(
-            (m: PaymentMethod) => m.id === p.methodId
-          );
+export function RecentTransactions({ companyId, onMetaUpdate }: Props) {
+  const [response, setResponse] = useState<PaymentsListResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [status, setStatus] = useState<'PENDING' | 'RECEIVED' | 'CANCELLED' | 'all'>('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [sortBy, setSortBy] = useState<'createdAt' | 'amountUSD' | 'paymentMethod'>('createdAt');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
-          return {
-            id: p.id.slice(-8),
-            vehicle: car?.plate || "N/A",
-            customer: car?.plate || "N/A",
-            amount: `$${p.amountUSD.toFixed(2)}`,
-            method: metodo?.type || "Otro",
-            status: mapEstado(p.status),
-            time: formatRelativeTime(p.date),
-          };
-        }),
-    [state.payments, state.cars, state.paymentMethods]
-  );
+  const handleSort = (column: 'createdAt' | 'amountUSD' | 'paymentMethod') => {
+    if (sortBy === column) {
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(column);
+      setSortOrder(column === 'amountUSD' ? 'desc' : 'asc');
+    }
+    setPage(1);
+  };
+
+  const SortIcon = ({ column }: { column: string }) => {
+    if (sortBy !== column) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-40" />;
+    return sortOrder === 'asc'
+      ? <ArrowUp className="h-3 w-3 ml-1" />
+      : <ArrowDown className="h-3 w-3 ml-1" />;
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setIsLoading(true);
+      try {
+        const data = await paymentsService.getAll({
+          page,
+          limit: 20,
+          companyId: companyId || undefined,
+          status: status === 'all' ? undefined : status,
+          dateFrom: dateFrom || undefined,
+          dateTo: dateTo || undefined,
+          sortBy,
+          sortOrder,
+        });
+        if (!cancelled) setResponse(data);
+      } catch {
+        // silently fail – component shows empty state
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [page, status, companyId, dateFrom, dateTo, sortBy, sortOrder]);
+
+  const payments = response?.data ?? [];
+  const meta = response?.meta;
+  const currentPage = meta?.page ?? 1;
+  const totalPages = meta?.totalPages ?? 1;
+
+  // Notify parent of meta when it changes (only on first page and all status)
+  useEffect(() => {
+    if (meta && onMetaUpdate && page === 1 && status === 'all') {
+      onMetaUpdate({
+        pending: meta.pending,
+        cancelled: meta.cancelled,
+        completed: meta.completed,
+        all: meta.all,
+        pendingAmountUSD: meta.pendingAmountUSD,
+        cancelledAmountUSD: meta.cancelledAmountUSD,
+        completedAmountUSD: meta.completedAmountUSD,
+      });
+    }
+  }, [meta, onMetaUpdate, page, status]);
 
   return (
     <Card>
-      <CardContent className="p-0">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base">Transactions</CardTitle>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setStatus('all')}
+              className={status === 'all' ? 'border-primary' : ''}
+            >
+              All
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setStatus('PENDING')}
+              className={status === 'PENDING' ? 'border-primary' : ''}
+            >
+              Pending
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setStatus('RECEIVED')}
+              className={status === 'RECEIVED' ? 'border-primary' : ''}
+            >
+              Completed
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setStatus('CANCELLED')}
+              className={status === 'CANCELLED' ? 'border-primary' : ''}
+            >
+              Cancelled
+            </Button>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 mt-3">
+          <Input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+            className="w-auto text-sm h-8"
+            placeholder="From"
+          />
+          <span className="text-muted-foreground text-sm">–</span>
+          <Input
+            type="date"
+            value={dateTo}
+            onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+            className="w-auto text-sm h-8"
+            placeholder="To"
+          />
+          {(dateFrom || dateTo) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setDateFrom(''); setDateTo(''); setPage(1); }}
+              className="text-xs h-8"
+            >
+              Clear
+            </Button>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="p-0 relative">
+        {isLoading && (
+          <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
+        )}
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               <TableHead>ID</TableHead>
-              <TableHead>Vehículo</TableHead>
-              <TableHead>Cliente</TableHead>
-              <TableHead>Monto</TableHead>
-              <TableHead>Método</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead className="text-right">Tiempo</TableHead>
+              <TableHead>Vehicle</TableHead>
+              <TableHead>
+                <button onClick={() => handleSort('amountUSD')} className="flex items-center hover:text-foreground transition-colors">
+                  Amount <SortIcon column="amountUSD" />
+                </button>
+              </TableHead>
+              <TableHead>
+                <button onClick={() => handleSort('paymentMethod')} className="flex items-center hover:text-foreground transition-colors">
+                  Method <SortIcon column="paymentMethod" />
+                </button>
+              </TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">
+                <button onClick={() => handleSort('createdAt')} className="flex items-center ml-auto hover:text-foreground transition-colors">
+                  Time <SortIcon column="createdAt" />
+                </button>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {transactions.map((tx) => (
-              <TableRow key={tx.id}>
-                <TableCell className="font-mono text-sm">{tx.id}</TableCell>
-                <TableCell className="font-medium">{tx.vehicle}</TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Avatar className="w-6 h-6">
-                      <AvatarFallback className="text-xs bg-secondary text-secondary-foreground">
-                        {tx.customer
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="text-sm">{tx.customer}</span>
-                  </div>
+            {payments.map((p) => (
+              <TableRow key={p.id}>
+                <TableCell className="font-mono text-sm">
+                  {p.id.slice(-8)}
                 </TableCell>
-                <TableCell className="font-semibold">{tx.amount}</TableCell>
-                <TableCell>{tx.method}</TableCell>
+                <TableCell className="font-medium">
+                  {p.parkingRecord?.plate ?? "N/A"}
+                </TableCell>
+                <TableCell className="font-semibold">
+                  ${p.amountUSD.toFixed(2)}
+                </TableCell>
+                <TableCell>
+                  {p.paymentMethod?.name ?? p.paymentMethod?.type ?? "-"}
+                </TableCell>
                 <TableCell>
                   <Badge
                     variant={
-                      tx.status === "completado" ? "default" : "secondary"
+                      mapStatus(p.status) === "completado"
+                        ? "default"
+                        : mapStatus(p.status) === "cancelado"
+                        ? "destructive"
+                        : "secondary"
                     }
                   >
-                    {tx.status}
+                    {mapStatus(p.status)}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right text-muted-foreground text-sm">
-                  {tx.time}
+                  {formatRelativeTime(p.date)}
                 </TableCell>
               </TableRow>
             ))}
-            {transactions.length === 0 && (
+            {payments.length === 0 && !isLoading && (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={6}
                   className="text-center text-muted-foreground text-sm py-6"
                 >
-                  Aún no hay pagos registrados
+                  No payments recorded
                 </TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
+
+        {/* Pagination controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t">
+            <div className="text-sm text-muted-foreground">
+              Page {currentPage} of {totalPages}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1 || isLoading}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages || isLoading}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

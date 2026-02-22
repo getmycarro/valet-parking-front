@@ -12,7 +12,7 @@ import { authService, type User as ApiUser } from "@/lib/services/auth-service";
 import { AuthError, logError } from "@/lib/utils/errors";
 
 // Mapeo de roles de API a roles del frontend
-export type UserRole = "admin" | "attendant";
+export type UserRole = "super_admin" | "admin" | "manager" | "attendant";
 
 export type User = {
   id: string;
@@ -26,7 +26,7 @@ export type User = {
 
 type AuthCtx = {
   user: User | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<UserRole>;
   logout: () => void;
   isLoading: boolean;
 };
@@ -37,10 +37,13 @@ const Ctx = createContext<AuthCtx | null>(null);
  * Mapea el rol de la API al rol del frontend
  */
 function mapApiRoleToFrontendRole(apiRole: string): UserRole {
-  if (apiRole === 'ADMIN') return 'admin';
-  if (apiRole === 'ATTENDANT') return 'attendant';
-  // Por defecto, asumimos que es attendant si no reconocemos el rol
-  return 'attendant';
+  const roleMap: Record<string, UserRole> = {
+    'SUPER_ADMIN': 'super_admin',
+    'ADMIN': 'admin',
+    'MANAGER': 'manager',
+    'ATTENDANT': 'attendant',
+  };
+  return roleMap[apiRole] ?? 'attendant';
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -79,18 +82,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       isLoading,
-      login: async (email: string, password: string) => {
+      login: async (email: string, password: string): Promise<UserRole> => {
         try {
           const response = await authService.login({ email, password });
+          const role = mapApiRoleToFrontendRole(response.user.role);
           setUser({
             id: response.user.id,
             email: response.user.email,
             name: response.user.name,
-            role: mapApiRoleToFrontendRole(response.user.role),
+            role,
             phone: response.user.phone,
             idNumber: response.user.idNumber,
             photoUrl: response.user.photoUrl,
           });
+          return role;
         } catch (error) {
           logError(error as Error, "AuthProvider.login");
           throw error;

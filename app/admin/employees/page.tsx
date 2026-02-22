@@ -2,240 +2,201 @@
 
 import type React from "react";
 import { useState } from "react";
-import { User, Trash2 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { User, Trash2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useStore } from "@/lib/store";
 import type { Employee } from "@/lib/types";
-import { AdminSidebar } from "@/components/admin/admin-sidebar";
-import { useAuth } from "@/lib/auth";
-import { useRouter } from "next/navigation";
+import { AdminLayout } from "@/components/layouts/admin-layout";
 import { Modal } from "@/components/ui/modal";
-import { AdminPageHeader } from "@/components/shared/admin-page-header";
+import { DataTable, type Column } from "@/components/shared/data-table";
+import { FormField } from "@/components/shared/form-field";
+import { SelectField } from "@/components/shared/select-field";
+import { useCrudModal } from "@/lib/hooks/use-crud-modal";
+
+const EMPLOYEE_TYPE_OPTIONS = [
+  { value: "VALET", label: "Valet" },
+  { value: "ATTENDANT", label: "Attendant" },
+  { value: "MANAGER", label: "Manager" },
+];
+
+const columns: Column<Employee>[] = [
+  {
+    header: "Name",
+    render: (e) => (
+      <span className="font-medium text-foreground">{e.name}</span>
+    ),
+  },
+  {
+    header: "ID Number",
+    render: (e) => (
+      <span className="text-muted-foreground">{e.idNumber}</span>
+    ),
+  },
+  {
+    header: "Type",
+    render: (e) => {
+      const typeConfig = {
+        VALET: { bg: "bg-blue-100", text: "text-blue-800", label: "Valet" },
+        ATTENDANT: { bg: "bg-purple-100", text: "text-purple-800", label: "Attendant" },
+        MANAGER: { bg: "bg-green-100", text: "text-green-800", label: "Manager" },
+      };
+      const config = typeConfig[e.type as keyof typeof typeConfig] || typeConfig.VALET;
+      return (
+        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
+          {config.label}
+        </span>
+      );
+    },
+  },
+  {
+    header: "Email",
+    render: (e) => (
+      <span className="text-muted-foreground">{e.email || "-"}</span>
+    ),
+  },
+];
+
+type FormValues = {
+  name: string;
+  idNumber: string;
+  employeeType: "VALET" | "ATTENDANT" | "MANAGER" ;
+  email: string;
+};
 
 export default function AdminEmployeesPage() {
+  const [searchTerm, setSearchTerm] = useState("");
   const { state, addEmployee, removeEmployee } = useStore();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const { user, logout } = useAuth();
-  const router = useRouter();
-  const [createOpen, setCreateOpen] = useState(false);
+  const modal = useCrudModal<FormValues>({
+    name: "",
+    idNumber: "",
+    employeeType: "VALET",
+    email: "",
+  });
 
-  const [name, setName] = useState("");
-  const [idNumber, setIdNumber] = useState("");
-  const [employeeType, setEmployeeType] = useState<'VALET' | 'ATTENDANT'>('VALET');
-  const [email, setEmail] = useState("");
-
-  const activeCarsCount = state.cars.filter((c) => !c.checkOutAt).length;
+  const filteredEmployees = state.employees.filter((employee) =>
+    employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    employee.idNumber.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!name || !idNumber) return;
-    if (employeeType === 'ATTENDANT' && !email) return;
+    if (!modal.values.name || !modal.values.idNumber) return;
+    if (modal.values.employeeType === "ATTENDANT" && !modal.values.email)
+      return;
 
     addEmployee({
-      name,
-      idNumber,
-      type: employeeType,
-      email: employeeType === 'ATTENDANT' ? email : undefined,
+      name: modal.values.name,
+      idNumber: modal.values.idNumber,
+      type: modal.values.employeeType,
+      email:
+        modal.values.employeeType === "ATTENDANT"
+          ? modal.values.email
+          : undefined,
     });
 
-    setName("");
-    setIdNumber("");
-    setEmail("");
-    setEmployeeType('VALET');
-    setCreateOpen(false);
+    modal.close();
   }
 
+  const actionColumn: Column<Employee> = {
+    header: "Actions",
+    className: "text-right",
+    render: (e) => (
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => removeEmployee(e.id, e.type)}
+        className="text-destructive hover:text-destructive-foreground hover:bg-destructive/20"
+      >
+        <Trash2 className="h-4 w-4" />
+      </Button>
+    ),
+  };
+
   return (
-    <div className="min-h-screen bg-background flex">
-      <AdminSidebar
-        isOpen={sidebarOpen}
-        onToggle={() => setSidebarOpen((v: boolean) => !v)}
+    <AdminLayout
+      title="Employees"
+      subtitle="Manage team and vehicles"
+      actions={
+        <Button onClick={modal.open} className="uppercase">
+          Create Employee
+        </Button>
+      }
+    >
+      <div className="mb-4 flex items-center gap-2 rounded-lg border border-input bg-background px-3 py-2">
+        <Search className="h-4 w-4 text-muted-foreground" />
+        <input
+          type="text"
+          placeholder="Search by name or ID number..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
+        />
+      </div>
+      <DataTable
+        columns={[...columns, actionColumn]}
+        data={filteredEmployees}
+        emptyMessage="No employees registered"
+        title="Employee List"
+        keyExtractor={(e) => e.id}
       />
 
-      <main
-        className={`flex-1 transition-all duration-300 ${
-          sidebarOpen ? "lg:ml-64" : "lg:ml-20"
-        }`}
+      <Modal
+        isOpen={modal.isOpen}
+        onClose={modal.close}
+        title="Create Employee"
+        description="Complete the details to register the employee"
+        size="md"
       >
-        <AdminPageHeader
-          title="Employees"
-          subtitle="Manage team and vehicles"
-          userName={user?.name || "Admin"}
-          notificationCount={activeCarsCount}
-          onLogout={() => {
-            logout();
-            router.push("/");
-          }}
-        />
+        <form onSubmit={onSubmit} className="space-y-4">
+          <SelectField
+            label="Employee Type"
+            id="employeeType"
+            value={modal.values.employeeType}
+            onChange={(v) =>
+              modal.setField("employeeType", v as "VALET" | "ATTENDANT" | "MANAGER")
+            }
+            options={EMPLOYEE_TYPE_OPTIONS}
+          />
 
-        <div className="p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <div />
-            <Button onClick={() => setCreateOpen(true)} className="uppercase">
-              Create Employee
+          <FormField
+            label="Name"
+            id="name"
+            value={modal.values.name}
+            onChange={(e) => modal.setField("name", e.target.value)}
+            icon={<User className="h-4 w-4" />}
+            placeholder="Full name"
+            required
+          />
+
+          <FormField
+            label="ID Number"
+            id="idNumber"
+            value={modal.values.idNumber}
+            onChange={(e) => modal.setField("idNumber", e.target.value)}
+            placeholder="Document number"
+            required
+          />
+
+          {modal.values.employeeType === "ATTENDANT" && (
+            <FormField
+              label="Email"
+              id="email"
+              type="email"
+              value={modal.values.email}
+              onChange={(e) => modal.setField("email", e.target.value)}
+              placeholder="email@example.com"
+              required
+            />
+          )}
+
+          <div className="flex items-center justify-end gap-2">
+            <Button variant="outline" type="button" onClick={modal.close}>
+              Cancel
             </Button>
+            <Button type="submit">Create</Button>
           </div>
-          <Card className="h-full">
-            <CardHeader>
-              <CardTitle className="text-xl text-primary">
-                Employee List
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="text-xs uppercase bg-muted text-muted-foreground">
-                    <tr>
-                      <th className="px-4 py-3 rounded-tl-lg">Name</th>
-                      <th className="px-4 py-3">ID Number</th>
-                      <th className="px-4 py-3">Type</th>
-                      <th className="px-4 py-3">Email</th>
-                      <th className="px-4 py-3 rounded-tr-lg text-right">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {state.employees.length === 0 ? (
-                      <tr>
-                        <td
-                          colSpan={5}
-                          className="px-4 py-8 text-center text-muted-foreground"
-                        >
-                          No employees registered
-                        </td>
-                      </tr>
-                    ) : (
-                      state.employees.map((e: Employee) => (
-                        <tr
-                          key={e.id}
-                          className="hover:bg-accent/30 transition-colors odd:bg-muted/20"
-                        >
-                          <td className="px-4 py-3 font-medium text-foreground">
-                            {e.name}
-                          </td>
-                          <td className="px-4 py-3 text-muted-foreground">
-                            {e.idNumber}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                              e.type === 'VALET'
-                                ? 'bg-blue-100 text-blue-800'
-                                : 'bg-purple-100 text-purple-800'
-                            }`}>
-                              {e.type === 'VALET' ? 'Valet' : 'Attendant'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-muted-foreground">
-                            {e.email || '-'}
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeEmployee(e.id, e.type)}
-                              className="text-destructive hover:text-destructive-foreground hover:bg-destructive/20"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Modal
-          isOpen={createOpen}
-          onClose={() => setCreateOpen(false)}
-          title="Create Employee"
-          description="Complete the details to register the employee"
-          size="md"
-        >
-          <form onSubmit={onSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="employeeType" className="text-muted-foreground">
-                Employee Type
-              </Label>
-              <select
-                id="employeeType"
-                className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
-                value={employeeType}
-                onChange={(e) => setEmployeeType(e.target.value as 'VALET' | 'ATTENDANT')}
-              >
-                <option value="VALET">Valet</option>
-                <option value="ATTENDANT">Attendant</option>
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="name" className="text-muted-foreground">
-                Name
-              </Label>
-              <div className="relative">
-                <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="pl-9"
-                  placeholder="Full name"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="idNumber" className="text-muted-foreground">
-                ID Number
-              </Label>
-              <Input
-                id="idNumber"
-                value={idNumber}
-                onChange={(e) => setIdNumber(e.target.value)}
-                placeholder="Document number"
-                required
-              />
-            </div>
-
-            {employeeType === 'ATTENDANT' && (
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-muted-foreground">
-                  Email
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="email@example.com"
-                  required
-                />
-              </div>
-            )}
-
-            <div className="flex items-center justify-end gap-2">
-              <Button
-                variant="outline"
-                type="button"
-                onClick={() => setCreateOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit">
-                Create
-              </Button>
-            </div>
-          </form>
-        </Modal>
-      </main>
-    </div>
+        </form>
+      </Modal>
+    </AdminLayout>
   );
 }

@@ -10,16 +10,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useAuth } from "@/lib/auth"
+import { ROLE_DEFAULT_REDIRECT } from "@/lib/constants"
 
-interface LoginFormProps {
-  userType: "attendant" | "admin"
-}
-
-export function LoginForm({ userType }: LoginFormProps) {
+export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-   const router = useRouter()
-   const { login } = useAuth()
+  const router = useRouter()
+  const { login } = useAuth()
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -34,13 +31,9 @@ export function LoginForm({ userType }: LoginFormProps) {
     setError(null)
 
     try {
-      await login(formData.email.trim(), formData.password)
-
-      if (userType === "attendant") {
-        router.push("/attendant/dashboard")
-      } else {
-        router.push("/admin/dashboard")
-      }
+      const role = await login(formData.email.trim(), formData.password)
+      const redirectPath = ROLE_DEFAULT_REDIRECT[role]
+      router.push(redirectPath)
     } catch (err: any) {
       const message =
         err?.response?.data?.message || err?.message || "Invalid credentials"
@@ -49,11 +42,6 @@ export function LoginForm({ userType }: LoginFormProps) {
       setIsLoading(false)
     }
   }
-
-  const buttonClass =
-    userType === "admin"
-      ? "bg-accent hover:bg-accent/90 text-accent-foreground"
-      : "bg-primary hover:bg-primary/90 text-primary-foreground"
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
@@ -116,7 +104,7 @@ export function LoginForm({ userType }: LoginFormProps) {
         <p className="text-sm text-red-500 text-center">{error}</p>
       )}
 
-      <Button type="submit" disabled={isLoading} className={`w-full h-11 ${buttonClass}`}>
+      <Button type="submit" disabled={isLoading} className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground">
         {isLoading ? (
           <>
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -126,15 +114,6 @@ export function LoginForm({ userType }: LoginFormProps) {
           "Sign In"
         )}
       </Button>
-
-      {userType === "attendant" && (
-        <p className="text-center text-sm text-muted-foreground">
-          Don't have an account?{" "}
-          <button type="button" className="text-primary hover:underline">
-            Contact administrator
-          </button>
-        </p>
-      )}
     </form>
   )
 }

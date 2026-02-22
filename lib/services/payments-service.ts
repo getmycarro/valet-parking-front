@@ -38,6 +38,37 @@ export interface Payment {
   updatedAt: string;
 }
 
+export interface PaymentsListResponse {
+  data: Payment[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    // Contadores estáticos por estado (incluyen todos los registros, no solo la página actual)
+    pending: number;          // Pagos pendientes
+    cancelled: number;        // Pagos cancelados
+    completed: number;        // Pagos completados (RECEIVED)
+    all: number;              // Total de pagos
+    cancelledAmountUSD: number
+    pendingAmountUSD: number
+    completedAmountUSD: number
+  };
+}
+
+export interface PaymentFilterParams {
+  page?: number;
+  limit?: number;
+  status?: 'PENDING' | 'RECEIVED' | 'CANCELLED' | 'all';
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
+  companyId?: string;
+  validation?: ValidationType;
+  sortBy?: 'createdAt' | 'amountUSD' | 'paymentMethod';
+  sortOrder?: 'asc' | 'desc';
+}
+
 export interface CreatePaymentRequest {
   parkingRecordId: string;
   paymentMethodId: string;
@@ -71,10 +102,41 @@ export const paymentsService = {
   },
 
   /**
-   * Obtener todos los pagos
+   * Obtener todos los pagos con paginación y filtros
+   *
+   * Reglas de construcción de query:
+   * - Siempre incluir: page, limit
+   * - Incluir companyId SOLO si está definido y no es null
+   * - Incluir status, search, dateFrom, dateTo, validation SOLO si tienen valor
    */
-  async getAll(): Promise<Payment[]> {
-    return apiClient.get<Payment[]>('/payments');
+  async getAll(
+    params: PaymentFilterParams = {},
+  ): Promise<PaymentsListResponse> {
+    const searchParams = new URLSearchParams();
+
+    // Parámetros obligatorios: page y limit
+    const page = params.page ?? 1;
+    const limit = params.limit ?? 20;
+    searchParams.append("page", String(page));
+    searchParams.append("limit", String(limit));
+
+    // Parámetro especial: companyId (solo si está definido y NO es null)
+    if (params.companyId && params.companyId !== "null") {
+      searchParams.append("companyId", params.companyId);
+    }
+
+    // Parámetros opcionales de filtro (solo si tienen valor)
+    const optionalParams = ["status", "search", "dateFrom", "dateTo", "validation", "sortBy", "sortOrder"];
+    optionalParams.forEach((key) => {
+      const value = params[key as keyof PaymentFilterParams];
+      if (value !== undefined && value !== null && value !== "") {
+        searchParams.append(key, String(value));
+      }
+    });
+
+    const queryString = searchParams.toString();
+    const url = `/payments?${queryString}`;
+    return apiClient.get<PaymentsListResponse>(url);
   },
 
   /**

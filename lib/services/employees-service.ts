@@ -1,10 +1,10 @@
-import { apiClient } from '../api-client';
+import { apiClient } from "../api-client";
 
 export interface Employee {
   id: string;
   name: string;
   idNumber: string;
-  type: 'VALET' | 'ATTENDANT';
+  type: "VALET" | "ATTENDANT";
   email?: string;
   photoUrl?: string;
 }
@@ -12,7 +12,7 @@ export interface Employee {
 export interface CreateEmployeeRequest {
   name: string;
   idNumber: string;
-  type: 'VALET' | 'ATTENDANT';
+  type: "VALET" | "ATTENDANT" | "MANAGER";
   email?: string;
 }
 
@@ -21,20 +21,23 @@ export const employeesService = {
    * Create a new employee (Valet or Attendant)
    */
   async create(data: CreateEmployeeRequest): Promise<Employee> {
-    return apiClient.post<Employee>('/employees', data);
+    return apiClient.post<Employee>("/employees", data);
   },
 
   /**
    * Get all employees (Valets and Attendants)
    */
   async getAll(): Promise<Employee[]> {
-    return apiClient.get<Employee[]>('/employees');
+    return apiClient.get<Employee[]>("/employees");
   },
 
   /**
    * Delete an employee by ID and type
    */
-  async delete(id: string, type: 'VALET' | 'ATTENDANT'): Promise<void> {
+  async delete(
+    id: string,
+    type: "VALET" | "ATTENDANT" | "MANAGER",
+  ): Promise<void> {
     return apiClient.delete(`/employees/${id}?type=${type}`);
   },
 };

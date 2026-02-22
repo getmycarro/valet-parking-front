@@ -1,4 +1,4 @@
-import { apiClient } from '../api-client';
+import { apiClient } from "../api-client";
 
 export interface ParkingRecord {
   id: string;
@@ -6,8 +6,8 @@ export interface ParkingRecord {
   brand?: string;
   model?: string;
   color?: string;
-  checkInAt: string;  // ISO date string
-  checkOutAt?: string;  // ISO date string
+  checkInAt: string; // ISO date string
+  checkOutAt?: string; // ISO date string
   // qrData?: string; // QR deshabilitado
   checkInValetId?: string;
   checkOutValetId?: string;
@@ -88,6 +88,10 @@ export interface VehiclesListResponse {
     limit: number;
     total: number;
     totalPages: number;
+    // Contadores estáticos por estado (incluyen todos los registros, no solo la página actual)
+    active: number;              // Vehículos sin pago
+    pending_delivery: number;    // Vehículos pagados, pendientes de entrega
+    completed: number;           // Vehículos entregados
   };
 }
 
@@ -98,10 +102,18 @@ export interface VehicleFilterParams {
   brand?: string;
   model?: string;
   color?: string;
-  status?: 'active' | 'completed' | 'pending_delivery' | 'all';
+  status?: "active" | "completed" | "pending_delivery" | "all";
   dateFrom?: string;
   dateTo?: string;
   search?: string;
+  companyId?: string;
+}
+
+export interface VehiclesCounters {
+  active: number;
+  pending_delivery: number;
+  completed: number;
+  all: number;
 }
 
 /**
@@ -112,7 +124,7 @@ export const vehiclesService = {
    * Registrar vehículo manualmente
    */
   async registerManual(data: RegisterVehicleRequest): Promise<ParkingRecord> {
-    return apiClient.post<ParkingRecord>('/vehicles/register', data);
+    return apiClient.post<ParkingRecord>("/vehicles/register", data);
   },
 
   // /**
@@ -125,7 +137,10 @@ export const vehiclesService = {
   /**
    * Marcar salida de vehículo (checkout)
    */
-  async checkout(id: string, data: CheckoutVehicleRequest): Promise<ParkingRecord> {
+  async checkout(
+    id: string,
+    data: CheckoutVehicleRequest,
+  ): Promise<ParkingRecord> {
     return apiClient.patch<ParkingRecord>(`/vehicles/${id}/checkout`, data);
   },
 
@@ -133,14 +148,29 @@ export const vehiclesService = {
    * Buscar vehículos por cédula del empleado
    */
   async searchByEmployee(idNumber: string): Promise<ParkingRecord[]> {
-    return apiClient.get<ParkingRecord[]>(`/vehicles/search?idNumber=${idNumber}`);
+    return apiClient.get<ParkingRecord[]>(
+      `/vehicles/search?idNumber=${idNumber}`,
+    );
   },
 
   /**
-   * Obtener vehículos activos (no entregados)
+   * Obtener vehículos activos (no entregados) con filtros opcionales
+   * ⚠️ DEPRECATED: Usar getAll() en su lugar
+   * Retorna objeto con data y meta (paginación)
    */
-  async getActive(): Promise<ParkingRecord[]> {
-    return apiClient.get<ParkingRecord[]>('/vehicles/active');
+  async getVehicles(
+    params: Omit<VehicleFilterParams, "page" | "limit"> = {},
+  ): Promise<VehiclesListResponse> {
+    const searchParams = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        searchParams.append(key, String(value));
+      }
+    });
+    const queryString = searchParams.toString();
+    const url = queryString ? `/vehicles?${queryString}` : "/vehicles";
+
+    return apiClient.get<VehiclesListResponse>(url);
   },
 
   /**
@@ -152,16 +182,39 @@ export const vehiclesService = {
 
   /**
    * Obtener todos los vehículos con paginación y filtros
+   *
+   * Reglas de construcción de query:
+   * - Siempre incluir: page, limit
+   * - Incluir companyId SOLO si está definido y no es null
+   * - Incluir status, search, plate, brand, model, color, dateFrom, dateTo SOLO si tienen valor
    */
-  async getAll(params: VehicleFilterParams = {}): Promise<VehiclesListResponse> {
+  async getAll(
+    params: VehicleFilterParams = {},
+  ): Promise<VehiclesListResponse> {
     const searchParams = new URLSearchParams();
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') {
+
+    // Parámetros obligatorios: page y limit
+    const page = params.page ?? 1;
+    const limit = params.limit ?? 20;
+    searchParams.append("page", String(page));
+    searchParams.append("limit", String(limit));
+
+    // Parámetro especial: companyId (solo si está definido y NO es null)
+    if (params.companyId && params.companyId !== "null") {
+      searchParams.append("companyId", params.companyId);
+    }
+
+    // Parámetros opcionales de filtro (solo si tienen valor)
+    const optionalParams = ["status", "search", "plate", "brand", "model", "color", "dateFrom", "dateTo"];
+    optionalParams.forEach((key) => {
+      const value = params[key as keyof VehicleFilterParams];
+      if (value !== undefined && value !== null && value !== "") {
         searchParams.append(key, String(value));
       }
     });
+
     const queryString = searchParams.toString();
-    const url = queryString ? `/vehicles?${queryString}` : '/vehicles';
+    const url = `/vehicles?${queryString}`;
     return apiClient.get<VehiclesListResponse>(url);
   },
 
@@ -169,13 +222,16 @@ export const vehiclesService = {
    * Buscar usuario y sus vehiculos por cedula
    */
   async getUserVehicles(idNumber: string): Promise<UserWithVehicles | null> {
-    return apiClient.get<UserWithVehicles | null>(`/vehicles/user-vehicles?idNumber=${encodeURIComponent(idNumber)}`);
+    return apiClient.get<UserWithVehicles | null>(
+      `/vehicles/user-vehicles?idNumber=${encodeURIComponent(idNumber)}`,
+    );
   },
 
   /**
    * Obtener lista de valets
    */
   async getValets(): Promise<ValetInfo[]> {
-    return apiClient.get<ValetInfo[]>('/vehicles/valets');
+    return apiClient.get<ValetInfo[]>("/vehicles/valets");
   },
+
 };

@@ -47,7 +47,7 @@ class ApiClient {
           // Token inválido o expirado - limpiar y redirigir al login
           this.clearToken();
           if (typeof window !== 'undefined') {
-            window.location.href = '/';
+            window.location.href = '/login';
           }
         }
         return Promise.reject(error);
@@ -64,19 +64,21 @@ class ApiClient {
   }
 
   /**
-   * Guarda el token en localStorage
+   * Guarda el token en localStorage y cookie (para middleware)
    */
   setToken(token: string): void {
     if (typeof window === 'undefined') return;
     localStorage.setItem(TOKEN_KEY, token);
+    document.cookie = `${TOKEN_KEY}=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
   }
 
   /**
-   * Elimina el token del localStorage
+   * Elimina el token del localStorage y cookie
    */
   clearToken(): void {
     if (typeof window === 'undefined') return;
     localStorage.removeItem(TOKEN_KEY);
+    document.cookie = `${TOKEN_KEY}=; path=/; max-age=0`;
   }
 
   /**

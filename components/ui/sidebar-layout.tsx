@@ -40,7 +40,7 @@ export function SidebarLayout({ navigation, children, userInfo }: SidebarLayoutP
       >
         {/* Logo */}
         <div className="flex items-center justify-between h-16 px-4 border-b border-border">
-          <Link href="/" className="flex items-center gap-2 text-primary">
+          <Link href="/attendant/dashboard" className="flex items-center gap-2 text-primary">
             <Car className="w-7 h-7" />
             <span className="font-bold text-lg">Valet Parking</span>
           </Link>

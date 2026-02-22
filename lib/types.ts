@@ -32,16 +32,6 @@ export type PaymentMethod = {
   isActive: boolean;
 };
 
-export type BillingType = "hourly" | "flat_rate";
-
-export type Settings = {
-  billing: {
-    type: BillingType;
-    rate: number;
-  };
-  tipEnabled: boolean;
-};
-
 export type PaymentStatus = "pending" | "received" | "cancelled";
 
 export type PaymentRecord = {

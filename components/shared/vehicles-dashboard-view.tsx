@@ -73,6 +73,8 @@ type Props = {
   onQueryChange?: (q: string) => void;
   showSearch?: boolean;
   refreshKey?: number;
+  companyId?: string | null;
+  hideResultsCard?: boolean;
 };
 
 export function VehiclesDashboardView({
@@ -80,8 +82,10 @@ export function VehiclesDashboardView({
   onQueryChange,
   showSearch = false,
   refreshKey = 0,
+  companyId = null,
+  hideResultsCard = false,
 }: Props) {
-  const { state, deliverCar, calculateAmount, addPayment } = useStore();
+  const { state, deliverCar, addPayment } = useStore();
 
   const {
     data: vehicles,
@@ -147,16 +151,26 @@ export function VehiclesDashboardView({
     setFilters({ search: query || undefined });
   }, [query, setFilters]);
 
-  // Summary counts from server-side data
-  const activosCount = vehicles.filter(
-    (v) => getTicketStatus(v) === "red",
-  ).length;
-  const pendientesEntregaCount = vehicles.filter(
-    (v) => getTicketStatus(v) === "yellow",
-  ).length;
-  const entregadosCount = vehicles.filter(
-    (v) => getTicketStatus(v) === "green",
-  ).length;
+  // Sync company filter from parent
+  useEffect(() => {
+    setFilters({ companyId: companyId || undefined });
+  }, [companyId, setFilters]);
+
+  // 📊 FLUJO DE DATOS DE CONTADORES:
+  // 1. Cuando cambia companyId (o cualquier filtro), se ejecuta setFilters()
+  // 2. Esto dispara el useEffect en use-vehicles.ts que llama fetchVehicles()
+  // 3. El API calcula los contadores (active, pending_delivery, completed) para los filtros aplicados
+  // 4. Se retornan en response.meta (líneas ~36-39 en use-vehicles.ts)
+  // 5. setMeta() actualiza el estado, lo que causa un re-render aquí
+  // 6. Los contadores (activosCount, pendientesEntregaCount, entregadosCount) se actualizan automáticamente
+  // 7. Los contadores son EXACTOS y reflejan EL TOTAL con los filtros aplicados, NO solo la página actual
+
+  // Contadores estáticos obtenidos directamente del API (meta)
+  // No se calculan filtrando, sino que vienen precalculados del backend
+  // Se actualizan automáticamente cuando cambian los filtros (companyId, status, fechas, etc.)
+  const activosCount = meta.active ?? 0;           // Total vehículos SIN PAGO
+  const pendientesEntregaCount = meta.pending_delivery ?? 0;  // Total pagados pero SIN ENTREGAR
+  const entregadosCount = meta.completed ?? 0;     // Total ENTREGADOS
 
   const handleStatusFilter = (s: StatusFilter) => {
     setStatusFilter(s);
@@ -217,24 +231,19 @@ export function VehiclesDashboardView({
     filters.dateTo ||
     filters.search;
 
-  const getAmount = (car: ParkingRecord) => {
+  const getAmount = (car: ParkingRecord): number | null => {
+    // Check payments from the API response first
+    if (car.payments && car.payments.length > 0) {
+      const sorted = [...car.payments].sort((a: any, b: any) =>
+        new Date(b.date).getTime() - new Date(a.date).getTime()
+      );
+      return sorted[0].amountUSD;
+    }
+    // Check local store payments
     const pagos = state.payments
       .filter((p: PaymentRecord) => p.parkingRecordId === car.id)
       .sort((x, y) => y.date - x.date);
-    const last = pagos[0];
-    return last
-      ? last.amountUSD
-      : calculateAmount({
-          id: car.id,
-          plate: car.plate,
-          brand: car.brand,
-          model: car.model,
-          color: car.color,
-          checkInAt: new Date(car.checkInAt).getTime(),
-          checkOutAt: car.checkOutAt
-            ? new Date(car.checkOutAt).getTime()
-            : undefined,
-        });
+    return pagos[0]?.amountUSD ?? null;
   };
 
   const handleOpenDetail = useCallback(async (id: string) => {
@@ -270,7 +279,7 @@ export function VehiclesDashboardView({
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className={`grid gap-4 ${hideResultsCard ? "md:grid-cols-3" : "md:grid-cols-4"}`}>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -310,19 +319,21 @@ export function VehiclesDashboardView({
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Resultados
-            </CardTitle>
-            <Search className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">
-              {meta.total}
-            </div>
-          </CardContent>
-        </Card>
+        {!hideResultsCard && (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Resultados
+              </CardTitle>
+              <Search className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">
+                {meta.total}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
@@ -472,7 +483,7 @@ export function VehiclesDashboardView({
                         : "-"}
                     </td>
                     <td className="p-4 align-middle">
-                      ${amount.toFixed(2)}
+                      {amount !== null ? `$${amount.toFixed(2)}` : "-"}
                     </td>
                     <td className="p-4 align-middle text-right">
                       <div className="flex items-center justify-end gap-1">
@@ -490,7 +501,7 @@ export function VehiclesDashboardView({
                             variant="outline"
                             onClick={() => {
                               setPayCarId(a.id);
-                              setPayMonto(String(amount));
+                              setPayMonto(amount !== null ? String(amount) : "");
                               setPayMethodId(paymentMethods.find((m) => m.isActive)?.id || "");
                               setPayReferencia("");
                               setPayNota("");

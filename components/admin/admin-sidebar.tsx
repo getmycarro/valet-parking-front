@@ -6,34 +6,72 @@ import {
   LayoutDashboard,
   Users,
   CreditCard,
-  Settings,
-  ParkingCircle,
   ChevronLeft,
   ChevronRight,
-  BarChart3,
   Clock,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import type { UserRole } from "@/lib/auth";
 
 interface AdminSidebarProps {
   isOpen: boolean;
   onToggle: () => void;
+  userRole: UserRole;
 }
 
-const menuItems = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/admin/dashboard" },
-  // { icon: Car, label: "Vehicles", href: "/admin/vehicles" },
-  { icon: Users, label: "Employees", href: "/admin/employees" },
-  { icon: CreditCard, label: "Billing", href: "/admin/billing" },
-  // { icon: ParkingCircle, label: "Spaces", href: "/admin/spaces" },
-  // { icon: BarChart3, label: "Reports", href: "/admin/reports" },
-  { icon: Clock, label: "History", href: "/admin/history" },
-  // { icon: Settings, label: "Settings", href: "/admin/settings" },
+type MenuItem = {
+  icon: typeof LayoutDashboard;
+  label: string;
+  href: string;
+  roles: UserRole[];
+};
+
+const menuItems: MenuItem[] = [
+  {
+    icon: LayoutDashboard,
+    label: "Dashboard",
+    href: "/admin/dashboard",
+    roles: ["admin", "manager"],
+  },
+  {
+    icon: Users,
+    label: "Employees",
+    href: "/admin/employees",
+    roles: ["admin"],
+  },
+  {
+    icon: CreditCard,
+    label: "Billing",
+    href: "/admin/billing",
+    roles: ["admin", "manager"],
+  },
+
+  {
+    icon: Building2,
+    label: "Companies",
+    href: "/admin/companies",
+    roles: ["super_admin"], // Solo visible para super_admin
+  },
+  {
+    icon: Users,
+    label: "Users",
+    href: "/admin/users",
+    roles: ["super_admin"],
+  },
 ];
 
-export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
+const roleLabels: Record<UserRole, string> = {
+  super_admin: "Super Admin",
+  admin: "Admin",
+  manager: "Manager",
+  attendant: "Attendant",
+};
+
+export function AdminSidebar({ isOpen, onToggle, userRole }: AdminSidebarProps) {
   const pathname = usePathname();
+  const visibleItems = menuItems.filter((item) => item.roles.includes(userRole));
 
   return (
     <>
@@ -59,14 +97,17 @@ export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
               <Car className="w-6 h-6 text-primary-foreground" />
             </div>
             {isOpen && (
-              <span className="font-bold text-foreground">Valet Admin</span>
+              <div className="flex flex-col">
+                <span className="font-bold text-foreground text-sm">Valet Parking</span>
+                <span className="text-xs text-muted-foreground">{roleLabels[userRole]}</span>
+              </div>
             )}
           </Link>
         </div>
 
         {/* Navigation */}
         <nav className="p-4 space-y-2">
-          {menuItems.map((item) => {
+          {visibleItems.map((item) => {
             const isActive = pathname === item.href;
             return (
               <Link

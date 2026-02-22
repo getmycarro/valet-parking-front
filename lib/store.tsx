@@ -11,31 +11,24 @@ import React, {
   useEffect,
   useMemo,
   useReducer,
-  useCallback,
   useState,
 } from "react";
 import type {
   Car,
   PaymentMethod,
-  Settings,
   PaymentRecord,
-  BillingType,
   PaymentStatus,
   Employee,
 } from "@/lib/types";
-import { DEFAULT_SETTINGS } from "@/lib/constants";
 import { StoreError, logError } from "@/lib/utils/errors";
-import { getDurationInHours } from "@/lib/utils/time";
 import { vehiclesService } from "@/lib/services/vehicles-service";
 import { paymentsService } from "@/lib/services/payments-service";
-import { settingsService } from "@/lib/services/settings-service";
 import { employeesService, type CreateEmployeeRequest } from "@/lib/services/employees-service";
 import { useAuth } from "@/lib/auth";
 
 type State = {
   cars: Car[];
   paymentMethods: PaymentMethod[];
-  settings: Settings;
   payments: PaymentRecord[];
   employees: Employee[];
 };
@@ -44,17 +37,14 @@ type DeliverCarPayload = {
   carId: string;
   checkOutAt: number;
   checkOutValetId?: string;
-  checkOutValet?: { id: string; name: string; email: string };
+  checkOutValet?: { id: string; name: string; idNumber?: string };
 };
 
 type Action =
   | { type: "init"; payload: State }
   | { type: "registerCarManual"; payload: Car }
-  // | { type: "registerCarQR"; payload: Car } // QR deshabilitado
   | { type: "deliverCar"; payload: DeliverCarPayload }
   | { type: "addPaymentMethod"; payload: PaymentMethod }
-  | { type: "updateBilling"; payload: { type: BillingType; rate: number } }
-  | { type: "setTipEnabled"; payload: boolean }
   | { type: "addPayment"; payload: PaymentRecord }
   | {
       type: "updatePaymentStatus";
@@ -67,7 +57,6 @@ type Action =
 const initialState: State = {
   cars: [],
   paymentMethods: [],
-  settings: DEFAULT_SETTINGS,
   payments: [],
   employees: [],
 };
@@ -80,10 +69,6 @@ function reducer(state: State, action: Action): State {
     case "registerCarManual": {
       return { ...state, cars: [action.payload, ...state.cars] };
     }
-
-    // case "registerCarQR": { // QR deshabilitado
-    //   return { ...state, cars: [action.payload, ...state.cars] };
-    // }
 
     case "deliverCar":
       return {
@@ -102,24 +87,6 @@ function reducer(state: State, action: Action): State {
 
     case "addPaymentMethod":
       return { ...state, paymentMethods: [action.payload, ...state.paymentMethods] };
-
-    case "updateBilling":
-      return {
-        ...state,
-        settings: {
-          ...state.settings,
-          billing: { type: action.payload.type, rate: action.payload.rate },
-        },
-      };
-
-    case "setTipEnabled":
-      return {
-        ...state,
-        settings: {
-          ...state.settings,
-          tipEnabled: action.payload,
-        },
-      };
 
     case "addPayment":
       return { ...state, payments: [action.payload, ...state.payments] };
@@ -165,16 +132,12 @@ type StoreCtx = {
   state: State;
   isLoading: boolean;
   registerCarManual: (d: RegisterCarInput) => Promise<void>;
-  // registerCarQR: (qr: string) => Promise<void>; // QR deshabilitado
   deliverCar: (id: string, checkOutValet?: string, notes?: string) => Promise<void>;
   addPaymentMethod: (m: Omit<PaymentMethod, "id">) => Promise<void>;
-  updateBilling: (type: BillingType, rate: number) => Promise<void>;
-  setTipEnabled: (v: boolean) => Promise<void>;
   addPayment: (d: Omit<PaymentRecord, "id" | "date"> & { paymentMethodId: string; fee: string; validation: "MANUAL" | "AUTOMATIC"; reference?: string; note?: string }) => Promise<void>;
   updatePaymentStatus: (id: string, status: PaymentStatus) => Promise<void>;
-  calculateAmount: (car: Car) => number;
   addEmployee: (data: CreateEmployeeRequest) => Promise<void>;
-  removeEmployee: (id: string, type: 'VALET' | 'ATTENDANT') => Promise<void>;
+  removeEmployee: (id: string, type: 'VALET' | 'ATTENDANT' | 'MANAGER') => Promise<void>;
 };
 
 const Ctx = createContext<StoreCtx | null>(null);
@@ -188,7 +151,6 @@ function mapParkingRecordToCar(record: any): Car {
     color: record.color,
     checkInAt: new Date(record.checkInAt).getTime(),
     checkOutAt: record.checkOutAt ? new Date(record.checkOutAt).getTime() : undefined,
-    // qrData: record.qrData, // QR deshabilitado
     checkInValetId: record.checkInValetId,
     checkOutValetId: record.checkOutValetId,
     checkInValet: record.checkInValet,
@@ -205,31 +167,28 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   // Load initial data from API when user authenticates
   useEffect(() => {
     async function loadData() {
-      // Skip API calls if user is not authenticated
       if (!user) {
         setIsLoading(false);
         return;
       }
 
+      // super_admin doesn't use vehicles/payments/employees
+      if (user.role === "super_admin") {
+        dispatch({
+          type: "init",
+          payload: { cars: [], paymentMethods: [], payments: [], employees: [] },
+        });
+        setIsLoading(false);
+        return;
+      }
+
       try {
-        // Cargar datos en paralelo desde la API
-        const [settingsData, paymentMethodsData, activeCarsData, employeesData] = await Promise.all([
-          settingsService.get(),
+        const [paymentMethodsData, vehiclesResponse, employeesData] = await Promise.all([
           paymentsService.getMethods(),
-          vehiclesService.getActive(),
+          vehiclesService.getVehicles(),
           employeesService.getAll(),
         ]);
-        console.log('🔍 [StoreProvider.loadData] employeesData:', employeesData);
-
-        const cars: Car[] = activeCarsData.map(mapParkingRecordToCar);
-
-        const settings: Settings = {
-          billing: {
-            type: settingsData.billingType.toLowerCase() as BillingType,
-            rate: settingsData.rate,
-          },
-          tipEnabled: settingsData.tipEnabled,
-        };
+        const cars: Car[] = vehiclesResponse.data.map(mapParkingRecordToCar);
 
         const paymentMethods: PaymentMethod[] = paymentMethodsData.map((pm) => ({
           id: pm.id,
@@ -244,7 +203,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           payload: {
             cars,
             paymentMethods,
-            settings,
             payments: [],
             employees: employeesData,
           },
@@ -256,7 +214,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           payload: {
             cars: [],
             paymentMethods: [],
-            settings: DEFAULT_SETTINGS,
             payments: [],
             employees: [],
           },
@@ -268,21 +225,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     loadData();
   }, [user]);
-
-  // Memoize expensive calculation function
-  const calculateAmount = useCallback(
-    (car: Car) => {
-      const billing = state.settings.billing;
-      if (billing.type === "flat_rate") {
-        return billing.rate;
-      }
-      const end = car.checkOutAt || Date.now();
-      const hours = getDurationInHours(car.checkInAt, end);
-      const roundedHours = Math.max(1, Math.ceil(hours));
-      return billing.rate * roundedHours;
-    },
-    [state.settings.billing]
-  );
 
   const api = useMemo<StoreCtx>(
     () => ({
@@ -310,31 +252,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           throw error;
         }
       },
-      // registerCarQR deshabilitado
-      // registerCarQR: async (qr: string) => {
-      //   try {
-      //     const qrData = JSON.parse(qr);
-      //     const vehicleId =
-      //       typeof qrData.vehicleId === "string"
-      //         ? qrData.vehicleId
-      //         : String(qrData.vehicleId || "");
-      //
-      //     if (!vehicleId) {
-      //       throw new Error("Invalid QR code: vehicleId not found");
-      //     }
-      //
-      //     const parkingRecord = await vehiclesService.registerQR({
-      //       vehicleId,
-      //       qrData: qr,
-      //     });
-      //
-      //     const car = mapParkingRecordToCar(parkingRecord);
-      //     dispatch({ type: "registerCarQR", payload: car });
-      //   } catch (error) {
-      //     logError(error as Error, "registerCarQR");
-      //     throw error;
-      //   }
-      // },
       deliverCar: async (id: string, checkOutValet?: string, notes?: string) => {
         try {
           const updatedRecord = await vehiclesService.checkout(id, {
@@ -373,27 +290,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           dispatch({ type: "addPaymentMethod", payload: pm });
         } catch (error) {
           logError(error as Error, "addPaymentMethod");
-          throw error;
-        }
-      },
-      updateBilling: async (type: BillingType, rate: number) => {
-        try {
-          await settingsService.updateBilling({
-            billingType: type.toUpperCase() as any,
-            rate,
-          });
-          dispatch({ type: "updateBilling", payload: { type, rate } });
-        } catch (error) {
-          logError(error as Error, "updateBilling");
-          throw error;
-        }
-      },
-      setTipEnabled: async (v: boolean) => {
-        try {
-          await settingsService.updateTip({ tipEnabled: v });
-          dispatch({ type: "setTipEnabled", payload: v });
-        } catch (error) {
-          logError(error as Error, "setTipEnabled");
           throw error;
         }
       },
@@ -445,7 +341,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           throw error;
         }
       },
-      removeEmployee: async (id: string, type: 'VALET' | 'ATTENDANT') => {
+      removeEmployee: async (id: string, type: 'VALET' | 'ATTENDANT' | 'MANAGER') => {
         try {
           await employeesService.delete(id, type);
           dispatch({ type: "removeEmployee", payload: id });
@@ -454,9 +350,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           throw error;
         }
       },
-      calculateAmount,
     }),
-    [state, isLoading, calculateAmount]
+    [state, isLoading]
   );
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;

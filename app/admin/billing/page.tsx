@@ -1,112 +1,173 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback } from "react";
 import { Calendar, Download, Filter, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { AdminSidebar } from "@/components/admin/admin-sidebar";
-import { RevenueChart } from "@/components/admin/revenue-chart";
+;
+import { AdminLayout } from "@/components/layouts/admin-layout";
+import { CompaniesSelectorModal } from "@/components/admin/companies-selector-modal";
 import { RecentTransactions } from "@/components/admin/recent-transactions";
 import { useAuth } from "@/lib/auth";
-import { AdminPageHeader } from "@/components/shared/admin-page-header";
-import { useStore } from "@/lib/store";
+import { companiesService, type Company } from "@/lib/services/companies-service";
 
 export default function AdminBillingPage() {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const { user, logout } = useAuth();
-  const router = useRouter();
-  const { state } = useStore();
+  const { user } = useAuth();
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [loadingCompanies, setLoadingCompanies] = useState(false);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  const [paymentsMeta, setPaymentsMeta] = useState({
+    pending: 0,
+    cancelled: 0,
+    completed: 0,
+    all: 0,
+    pendingAmountUSD: 0,
+    cancelledAmountUSD: 0,
+    completedAmountUSD: 0,
+  });
 
-  const activeCarsCount = state.cars.filter((c) => !c.checkOutAt).length;
+  useEffect(() => {
+    if (user?.role === "admin") {
+      fetchCompanies();
+    }
+  }, [user?.role]);
+
+  const fetchCompanies = async () => {
+    setLoadingCompanies(true);
+    try {
+      const response = await companiesService.getAll();
+      const companiesList = Array.isArray(response?.data) ? response.data : Array.isArray(response) ? (response as unknown as Company[]) : [];
+      setCompanies(companiesList);
+      // Auto-select first company if only one exists
+      if (companiesList.length === 1) {
+        setSelectedCompanyId(companiesList[0].id);
+      }
+    } catch {
+      // API error handling via interceptor
+    } finally {
+      setLoadingCompanies(false);
+    }
+  };
+
+  const handleMetaUpdate = useCallback((meta: typeof paymentsMeta) => {
+    setPaymentsMeta(meta);
+  }, []);
 
   return (
-    <div className="min-h-screen bg-background flex">
-      <AdminSidebar
-        isOpen={sidebarOpen}
-        onToggle={() => setSidebarOpen(!sidebarOpen)}
-      />
-
-      <main
-        className={`flex-1 transition-all duration-300 ${
-          sidebarOpen ? "lg:ml-64" : "lg:ml-20"
-        }`}
-      >
-        <AdminPageHeader
-          title="Billing"
-          subtitle="Revenue and transaction management"
-          userName={user?.name || "Admin"}
-          notificationCount={activeCarsCount}
-          onLogout={() => {
-            logout();
-            router.push("/");
-          }}
+    <AdminLayout title="Billing" subtitle="Revenue and transaction management">
+      {user?.role === "admin" && (
+        <CompaniesSelectorModal
+          companies={companies}
+          loading={loadingCompanies}
+          selectedCompanyId={selectedCompanyId}
+          onSelectCompany={setSelectedCompanyId}
+          onShowAll={() => setSelectedCompanyId(null)}
         />
+      )}
 
-        <div className="p-6 space-y-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <div>
-                <CardTitle>Revenue</CardTitle>
-                <CardDescription>Last 7 days</CardDescription>
-              </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <Calendar className="w-4 h-4 mr-2" />
-                    This Week
-                    <ChevronDown className="w-4 h-4 ml-2" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem>Today</DropdownMenuItem>
-                  <DropdownMenuItem>This Week</DropdownMenuItem>
-                  <DropdownMenuItem>This Month</DropdownMenuItem>
-                  <DropdownMenuItem>This Year</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </CardHeader>
-            <CardContent>
-              <RevenueChart />
-            </CardContent>
-          </Card>
-
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <h2 className="text-lg font-semibold text-foreground">
-                Recent Transactions
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                Latest recorded payments
-              </p>
+      {/* Payment Counters */}
+      <div className="grid grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Pending Payments
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {paymentsMeta.pending}
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm">
-                <Filter className="w-4 h-4 mr-2" />
-                Filter
-              </Button>
-              <Button variant="outline" size="sm">
-                <Download className="w-4 h-4 mr-2" />
-                Export
-              </Button>
+            <div className="text-lg font-semibold text-yellow-600 mt-2">
+              ${paymentsMeta.pendingAmountUSD}
             </div>
-          </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Awaiting payment
+            </p>
+          </CardContent>
+        </Card>
 
-          <RecentTransactions />
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Completed
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {paymentsMeta.completed}
+            </div>
+            <div className="text-lg font-semibold text-green-600 mt-2">
+              ${paymentsMeta.completedAmountUSD}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Completed payments
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Cancelled
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {paymentsMeta.cancelled}
+            </div>
+            <div className="text-lg font-semibold text-red-600 mt-2">
+              ${paymentsMeta.cancelledAmountUSD}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Cancelled payments
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {paymentsMeta.all}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              All payments
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <h2 className="text-lg font-semibold text-foreground">
+            Recent Transactions
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Latest recorded payments
+          </p>
         </div>
-      </main>
-    </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm">
+            <Filter className="w-4 h-4 mr-2" />
+            Filter
+          </Button>
+          <Button variant="outline" size="sm">
+            <Download className="w-4 h-4 mr-2" />
+            Export
+          </Button>
+        </div>
+      </div>
+
+      <RecentTransactions companyId={selectedCompanyId} onMetaUpdate={handleMetaUpdate} />
+    </AdminLayout>
   );
 }
