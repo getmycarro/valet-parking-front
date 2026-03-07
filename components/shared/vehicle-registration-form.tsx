@@ -7,10 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 // import { QRScanner } from "@/components/shared/qr-scanner"; // QR deshabilitado
 import { useStore } from "@/lib/store";
+import { useAuth } from "@/lib/auth";
 import { isValidEmail, isValidPhone, isValidPlate } from "@/lib/utils/validation";
 import { IdCard, FileText, Search, ArrowLeft, Plus, Car } from "lucide-react"; // QrCode removido - QR deshabilitado
 import { toast } from "sonner";
 import { vehiclesService, type UserWithVehicles, type ValetInfo } from "@/lib/services/vehicles-service";
+import { companiesService, type Company } from "@/lib/services/companies-service";
 
 type Props = {
   onSubmitted?: () => void;
@@ -18,6 +20,20 @@ type Props = {
 
 export function VehicleRegistrationForm({ onSubmitted }: Props) {
   const { registerCarManual } = useStore(); // registerCarQR removido - QR deshabilitado
+  const { user } = useAuth();
+
+  const isAdmin = user?.role === "admin" || user?.role === "super_admin";
+
+  // Companies list (only for admin roles)
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [selectedCompanyId, setSelectedCompanyId] = useState("");
+  useEffect(() => {
+    if (isAdmin) {
+      companiesService.getAll({ isActive: true, limit: 100 })
+        .then((res) => setCompanies(res.data))
+        .catch((err) => console.error("[companies] failed to load:", err));
+    }
+  }, [isAdmin]);
 
   // Manual form state
   const [name, setName] = useState("");
@@ -63,6 +79,11 @@ export function VehicleRegistrationForm({ onSubmitted }: Props) {
     e.preventDefault();
     setError("");
 
+    if (isAdmin && !selectedCompanyId) {
+      setError("Debes seleccionar una empresa");
+      return;
+    }
+
     if (!plate.trim()) {
       setError("Por favor ingresa la placa");
       return;
@@ -92,6 +113,7 @@ export function VehicleRegistrationForm({ onSubmitted }: Props) {
         email: email || undefined,
         name: name || undefined,
         valedId: selectedValetId || undefined,
+        companyId: selectedCompanyId || undefined,
       });
 
       setName("");
@@ -103,6 +125,7 @@ export function VehicleRegistrationForm({ onSubmitted }: Props) {
       setColor("");
       setError("");
       setSelectedValetId("");
+      setSelectedCompanyId("");
 
       toast.success("Vehículo registrado exitosamente");
       onSubmitted?.();
@@ -145,6 +168,7 @@ export function VehicleRegistrationForm({ onSubmitted }: Props) {
     setCedulaEmail("");
     setCedulaError("");
     setSelectedValetId("");
+    setSelectedCompanyId("");
   };
 
   const handleIdSearch = async (e: React.FormEvent) => {
@@ -185,6 +209,12 @@ export function VehicleRegistrationForm({ onSubmitted }: Props) {
   const handleCedulaSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setCedulaError("");
+
+    if (isAdmin && !selectedCompanyId) {
+      setCedulaError("Debes seleccionar una empresa");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -204,6 +234,7 @@ export function VehicleRegistrationForm({ onSubmitted }: Props) {
             model: vehicle.model,
             color: vehicle.color,
             valedId: selectedValetId || undefined,
+            companyId: selectedCompanyId || undefined,
           });
         } else if (addingNewVehicle) {
           if (!cedulaPlate.trim()) {
@@ -221,6 +252,7 @@ export function VehicleRegistrationForm({ onSubmitted }: Props) {
             model: cedulaModel || undefined,
             color: cedulaColor || undefined,
             valedId: selectedValetId || undefined,
+            companyId: selectedCompanyId || undefined,
           });
         } else {
           setCedulaError("Selecciona un vehículo o agrega uno nuevo");
@@ -253,6 +285,7 @@ export function VehicleRegistrationForm({ onSubmitted }: Props) {
           model: cedulaModel || undefined,
           color: cedulaColor || undefined,
           valedId: selectedValetId || undefined,
+          companyId: selectedCompanyId || undefined,
         });
       }
 
@@ -464,6 +497,26 @@ export function VehicleRegistrationForm({ onSubmitted }: Props) {
               </div>
             )}
 
+            {/* Empresa */}
+            {isAdmin && (
+              <div className="space-y-2">
+                <Label>Empresa *</Label>
+                <select
+                  className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                  value={selectedCompanyId}
+                  onChange={(e) => setSelectedCompanyId(e.target.value)}
+                  required
+                >
+                  <option value="">-- Selecciona una empresa --</option>
+                  {companies.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {/* Valet de ingreso */}
             <div className="space-y-2">
               <Label>Valet de ingreso</Label>
@@ -593,6 +646,26 @@ export function VehicleRegistrationForm({ onSubmitted }: Props) {
               </div>
             </div>
 
+            {/* Empresa */}
+            {isAdmin && (
+              <div className="space-y-2">
+                <Label>Empresa *</Label>
+                <select
+                  className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                  value={selectedCompanyId}
+                  onChange={(e) => setSelectedCompanyId(e.target.value)}
+                  required
+                >
+                  <option value="">-- Selecciona una empresa --</option>
+                  {companies.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {/* Valet de ingreso */}
             <div className="space-y-2">
               <Label>Valet de ingreso</Label>
@@ -721,6 +794,26 @@ export function VehicleRegistrationForm({ onSubmitted }: Props) {
               </select>
             </div>
           </div>
+
+          {isAdmin && (
+            <div className="space-y-2">
+              <Label htmlFor="companyManual">Empresa *</Label>
+              <select
+                id="companyManual"
+                className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                value={selectedCompanyId}
+                onChange={(e) => setSelectedCompanyId(e.target.value)}
+                required
+              >
+                <option value="">-- Selecciona una empresa --</option>
+                {companies.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="pt-2">
             <Button type="submit" className="w-full md:w-auto">

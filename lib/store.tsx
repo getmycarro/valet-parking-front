@@ -126,6 +126,7 @@ export type RegisterCarInput = {
   userId?: string;
   vehicleId?: string;
   valedId?: string;
+  companyId?: string;
 };
 
 type StoreCtx = {
@@ -243,6 +244,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             userId: d.userId,
             vehicleId: d.vehicleId,
             valedId: d.valedId,
+            companyId: d.companyId,
           });
 
           const car = mapParkingRecordToCar(parkingRecord);

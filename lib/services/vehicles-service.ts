@@ -46,6 +46,7 @@ export interface RegisterVehicleRequest {
   userId?: string;
   vehicleId?: string;
   valedId?: string;
+  companyId?: string;
 }
 
 export interface UserWithVehicles {

@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Clock,
   Building2,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,12 @@ const menuItems: MenuItem[] = [
     icon: CreditCard,
     label: "Billing",
     href: "/admin/billing",
+    roles: ["admin", "manager"],
+  },
+  {
+    icon: FileText,
+    label: "Invoices",
+    href: "/admin/invoices",
     roles: ["admin", "manager"],
   },
 
