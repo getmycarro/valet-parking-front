@@ -36,8 +36,8 @@ export function LoginForm() {
       router.push(redirectPath)
     } catch (err: any) {
       const message =
-        err?.response?.data?.message || err?.message || "Invalid credentials"
-      setError(typeof message === "string" ? message : "Invalid credentials")
+        err?.response?.data?.message || err?.message || "Credenciales inválidas"
+      setError(typeof message === "string" ? message : "Credenciales inválidas")
     } finally {
       setIsLoading(false)
     }
@@ -47,7 +47,7 @@ export function LoginForm() {
     <form onSubmit={handleSubmit} className="space-y-5">
       <div className="space-y-2">
         <Label htmlFor="email" className="text-foreground">
-          Email
+          Correo Electrónico
         </Label>
         <Input
           id="email"
@@ -62,7 +62,7 @@ export function LoginForm() {
 
       <div className="space-y-2">
         <Label htmlFor="password" className="text-foreground">
-          Password
+          Contraseña
         </Label>
         <div className="relative">
           <Input
@@ -92,11 +92,11 @@ export function LoginForm() {
             onCheckedChange={(checked) => setFormData({ ...formData, remember: checked as boolean })}
           />
           <Label htmlFor="remember" className="text-sm text-muted-foreground cursor-pointer">
-            Remember me
+            Recordarme
           </Label>
         </div>
         <button type="button" className="text-sm text-primary hover:underline">
-          Forgot password?
+          ¿Olvidaste tu contraseña?
         </button>
       </div>
 
@@ -108,10 +108,10 @@ export function LoginForm() {
         {isLoading ? (
           <>
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            Signing in...
+            Iniciando sesión...
           </>
         ) : (
-          "Sign In"
+          "Iniciar Sesión"
         )}
       </Button>
     </form>

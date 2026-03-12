@@ -86,6 +86,20 @@ export const authService = {
   },
 
   /**
+   * Actualizar perfil del usuario autenticado
+   */
+  async updateProfile(data: { name?: string; idNumber?: string }): Promise<User> {
+    return apiClient.patch<User>('/auth/profile', data);
+  },
+
+  /**
+   * Cambiar contraseña del usuario autenticado
+   */
+  async changePassword(data: { currentPassword: string; newPassword: string }): Promise<void> {
+    return apiClient.patch('/auth/change-password', data);
+  },
+
+  /**
    * Verificar si el usuario está autenticado
    */
   isAuthenticated(): boolean {

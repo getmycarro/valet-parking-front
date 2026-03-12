@@ -3,11 +3,14 @@
 import type { ReactNode } from "react"
 import { AuthProvider } from "@/lib/auth"
 import { StoreProvider } from "@/lib/store"
+import { ThemeProvider } from "@/components/theme-provider"
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
-    <AuthProvider>
-      <StoreProvider>{children}</StoreProvider>
-    </AuthProvider>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <AuthProvider>
+        <StoreProvider>{children}</StoreProvider>
+      </AuthProvider>
+    </ThemeProvider>
   )
 }

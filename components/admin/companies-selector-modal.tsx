@@ -24,10 +24,10 @@ export function CompaniesSelectorModal({
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold flex items-center gap-2">
           <Building2 className="w-5 h-5" />
-          Your Companies
+          Mis Empresas
           {selectedCompanyId && (
             <span className="text-sm font-normal text-muted-foreground">
-              (Filtering by company)
+              (Filtrando por empresa)
             </span>
           )}
         </h2>
@@ -38,7 +38,7 @@ export function CompaniesSelectorModal({
               variant="outline"
               size="sm"
             >
-              Show All
+              Mostrar Todas
             </Button>
           )}
         </div>
@@ -66,7 +66,7 @@ export function CompaniesSelectorModal({
                       : "bg-red-100 text-red-800"
                   }`}
                 >
-                  {company.isActive ? "Active" : "Inactive"}
+                  {company.isActive ? "Activa" : "Inactiva"}
                 </span>
               </div>
               {company.plans && company.plans.length > 0 && (
@@ -75,14 +75,14 @@ export function CompaniesSelectorModal({
                 </p>
               )}
               <p className="text-xs text-muted-foreground mt-2">
-                Created {new Date(company.createdAt).toLocaleDateString()}
+                Creada {new Date(company.createdAt).toLocaleDateString()}
               </p>
             </button>
           ))}
         </div>
       ) : (
         <div className="p-8 border rounded-lg bg-card text-center">
-          <p className="text-muted-foreground">No companies found</p>
+          <p className="text-muted-foreground">No se encontraron empresas</p>
         </div>
       )}
     </div>

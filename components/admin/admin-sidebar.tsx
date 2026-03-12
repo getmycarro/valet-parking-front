@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTheme } from "next-themes";
 import {
   Car,
   LayoutDashboard,
@@ -11,6 +12,8 @@ import {
   Clock,
   Building2,
   FileText,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -32,38 +35,38 @@ type MenuItem = {
 const menuItems: MenuItem[] = [
   {
     icon: LayoutDashboard,
-    label: "Dashboard",
+    label: "Panel",
     href: "/admin/dashboard",
     roles: ["admin", "manager"],
   },
   {
     icon: Users,
-    label: "Employees",
+    label: "Empleados",
     href: "/admin/employees",
     roles: ["admin"],
   },
   {
     icon: CreditCard,
-    label: "Billing",
+    label: "Facturación",
     href: "/admin/billing",
     roles: ["admin", "manager"],
   },
   {
     icon: FileText,
-    label: "Invoices",
+    label: "Facturas",
     href: "/admin/invoices",
     roles: ["admin", "manager"],
   },
 
   {
     icon: Building2,
-    label: "Companies",
+    label: "Empresas",
     href: "/admin/companies",
     roles: ["super_admin"], // Solo visible para super_admin
   },
   {
     icon: Users,
-    label: "Users",
+    label: "Usuarios",
     href: "/admin/users",
     roles: ["super_admin"],
   },
@@ -72,12 +75,13 @@ const menuItems: MenuItem[] = [
 const roleLabels: Record<UserRole, string> = {
   super_admin: "Super Admin",
   admin: "Admin",
-  manager: "Manager",
-  attendant: "Attendant",
+  manager: "Gerente",
+  attendant: "Valet",
 };
 
 export function AdminSidebar({ isOpen, onToggle, userRole }: AdminSidebarProps) {
   const pathname = usePathname();
+  const { theme, setTheme } = useTheme();
   const visibleItems = menuItems.filter((item) => item.roles.includes(userRole));
 
   return (
@@ -135,6 +139,29 @@ export function AdminSidebar({ isOpen, onToggle, userRole }: AdminSidebarProps) 
             );
           })}
         </nav>
+
+        {/* Dark/Light mode toggle */}
+        <div className="absolute bottom-6 left-0 right-0 px-4">
+          <button
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors w-full",
+              "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            )}
+            title={theme === "dark" ? "Modo claro" : "Modo oscuro"}
+          >
+            {theme === "dark" ? (
+              <Sun className="w-5 h-5 flex-shrink-0" />
+            ) : (
+              <Moon className="w-5 h-5 flex-shrink-0" />
+            )}
+            {isOpen && (
+              <span className="text-sm font-medium">
+                {theme === "dark" ? "Modo Claro" : "Modo Oscuro"}
+              </span>
+            )}
+          </button>
+        </div>
 
         {/* Toggle button */}
         <Button

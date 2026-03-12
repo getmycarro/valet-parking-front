@@ -47,11 +47,11 @@ export default function AdminDashboardPage() {
 
   return (
     <AdminLayout
-      title="Dashboard"
+      title="Panel"
       subtitle={`Bienvenido, ${user?.name || "Administrador"}`}
       actions={
         <Button onClick={() => setRegOpen(true)} className="uppercase">
-          Register Vehicle
+          Registrar Vehículo
         </Button>
       }
     >
@@ -71,8 +71,8 @@ export default function AdminDashboardPage() {
       <Modal
         isOpen={regOpen}
         onClose={() => setRegOpen(false)}
-        title="Register Vehicle"
-        description="Complete the details to register the vehicle"
+        title="Registrar Vehículo"
+        description="Completa los datos para registrar el vehículo"
         size="lg"
       >
         <VehicleRegistrationForm

@@ -59,7 +59,7 @@ export default function AdminBillingPage() {
   }, []);
 
   return (
-    <AdminLayout title="Billing" subtitle="Revenue and transaction management">
+    <AdminLayout title="Facturación" subtitle="Gestión de ingresos y transacciones">
       {user?.role === "admin" && (
         <CompaniesSelectorModal
           companies={companies}
@@ -75,7 +75,7 @@ export default function AdminBillingPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Pending Payments
+              Pagos Pendientes
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -86,7 +86,7 @@ export default function AdminBillingPage() {
               ${paymentsMeta.pendingAmountUSD}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Awaiting payment
+              En espera de pago
             </p>
           </CardContent>
         </Card>
@@ -94,7 +94,7 @@ export default function AdminBillingPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Completed
+              Completados
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -105,7 +105,7 @@ export default function AdminBillingPage() {
               ${paymentsMeta.completedAmountUSD}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Completed payments
+              Pagos completados
             </p>
           </CardContent>
         </Card>
@@ -113,7 +113,7 @@ export default function AdminBillingPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Cancelled
+              Cancelados
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -124,7 +124,7 @@ export default function AdminBillingPage() {
               ${paymentsMeta.cancelledAmountUSD}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Cancelled payments
+              Pagos cancelados
             </p>
           </CardContent>
         </Card>
@@ -140,7 +140,7 @@ export default function AdminBillingPage() {
               {paymentsMeta.all}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              All payments
+              Todos los pagos
             </p>
           </CardContent>
         </Card>
@@ -149,20 +149,20 @@ export default function AdminBillingPage() {
       <div className="flex items-center justify-between">
         <div className="space-y-1">
           <h2 className="text-lg font-semibold text-foreground">
-            Recent Transactions
+            Transacciones Recientes
           </h2>
           <p className="text-sm text-muted-foreground">
-            Latest recorded payments
+            Últimos pagos registrados
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm">
             <Filter className="w-4 h-4 mr-2" />
-            Filter
+            Filtrar
           </Button>
           <Button variant="outline" size="sm">
             <Download className="w-4 h-4 mr-2" />
-            Export
+            Exportar
           </Button>
         </div>
       </div>

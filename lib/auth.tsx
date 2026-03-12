@@ -29,6 +29,8 @@ type AuthCtx = {
   login: (email: string, password: string) => Promise<UserRole>;
   logout: () => void;
   isLoading: boolean;
+  updateUser: (data: { name?: string; idNumber?: string }) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 };
 
 const Ctx = createContext<AuthCtx | null>(null);
@@ -104,6 +106,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout: () => {
         authService.logout();
         setUser(null);
+      },
+      updateUser: async (data: { name?: string; idNumber?: string }) => {
+        const updated = await authService.updateProfile(data);
+        setUser((prev) => prev ? {
+          ...prev,
+          name: updated.name ?? prev.name,
+          idNumber: updated.idNumber ?? prev.idNumber,
+        } : prev);
+      },
+      changePassword: async (currentPassword: string, newPassword: string) => {
+        await authService.changePassword({ currentPassword, newPassword });
       },
     }),
     [user, isLoading]

@@ -123,7 +123,7 @@ export function RecentTransactions({ companyId, onMetaUpdate }: Props) {
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-base">Transactions</CardTitle>
+          <CardTitle className="text-base">Transacciones</CardTitle>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -131,7 +131,7 @@ export function RecentTransactions({ companyId, onMetaUpdate }: Props) {
               onClick={() => setStatus('all')}
               className={status === 'all' ? 'border-primary' : ''}
             >
-              All
+              Todos
             </Button>
             <Button
               variant="outline"
@@ -139,7 +139,7 @@ export function RecentTransactions({ companyId, onMetaUpdate }: Props) {
               onClick={() => setStatus('PENDING')}
               className={status === 'PENDING' ? 'border-primary' : ''}
             >
-              Pending
+              Pendientes
             </Button>
             <Button
               variant="outline"
@@ -147,7 +147,7 @@ export function RecentTransactions({ companyId, onMetaUpdate }: Props) {
               onClick={() => setStatus('RECEIVED')}
               className={status === 'RECEIVED' ? 'border-primary' : ''}
             >
-              Completed
+              Completados
             </Button>
             <Button
               variant="outline"
@@ -155,7 +155,7 @@ export function RecentTransactions({ companyId, onMetaUpdate }: Props) {
               onClick={() => setStatus('CANCELLED')}
               className={status === 'CANCELLED' ? 'border-primary' : ''}
             >
-              Cancelled
+              Cancelados
             </Button>
           </div>
         </div>
@@ -182,7 +182,7 @@ export function RecentTransactions({ companyId, onMetaUpdate }: Props) {
               onClick={() => { setDateFrom(''); setDateTo(''); setPage(1); }}
               className="text-xs h-8"
             >
-              Clear
+              Limpiar
             </Button>
           )}
         </div>
@@ -197,21 +197,21 @@ export function RecentTransactions({ companyId, onMetaUpdate }: Props) {
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               <TableHead>ID</TableHead>
-              <TableHead>Vehicle</TableHead>
+              <TableHead>Vehículo</TableHead>
               <TableHead>
                 <button onClick={() => handleSort('amountUSD')} className="flex items-center hover:text-foreground transition-colors">
-                  Amount <SortIcon column="amountUSD" />
+                  Monto <SortIcon column="amountUSD" />
                 </button>
               </TableHead>
               <TableHead>
                 <button onClick={() => handleSort('paymentMethod')} className="flex items-center hover:text-foreground transition-colors">
-                  Method <SortIcon column="paymentMethod" />
+                  Método <SortIcon column="paymentMethod" />
                 </button>
               </TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>Estado</TableHead>
               <TableHead className="text-right">
                 <button onClick={() => handleSort('createdAt')} className="flex items-center ml-auto hover:text-foreground transition-colors">
-                  Time <SortIcon column="createdAt" />
+                  Hora <SortIcon column="createdAt" />
                 </button>
               </TableHead>
             </TableRow>
@@ -255,7 +255,7 @@ export function RecentTransactions({ companyId, onMetaUpdate }: Props) {
                   colSpan={6}
                   className="text-center text-muted-foreground text-sm py-6"
                 >
-                  No payments recorded
+                  No hay pagos registrados
                 </TableCell>
               </TableRow>
             )}
@@ -266,7 +266,7 @@ export function RecentTransactions({ companyId, onMetaUpdate }: Props) {
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t">
             <div className="text-sm text-muted-foreground">
-              Page {currentPage} of {totalPages}
+              Página {currentPage} de {totalPages}
             </div>
             <div className="flex items-center gap-2">
               <Button

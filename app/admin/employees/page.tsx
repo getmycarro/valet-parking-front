@@ -15,30 +15,30 @@ import { useCrudModal } from "@/lib/hooks/use-crud-modal";
 
 const EMPLOYEE_TYPE_OPTIONS = [
   { value: "VALET", label: "Valet" },
-  { value: "ATTENDANT", label: "Attendant" },
-  { value: "MANAGER", label: "Manager" },
+  { value: "ATTENDANT", label: "Asistente" },
+  { value: "MANAGER", label: "Gerente" },
 ];
 
 const columns: Column<Employee>[] = [
   {
-    header: "Name",
+    header: "Nombre",
     render: (e) => (
       <span className="font-medium text-foreground">{e.name}</span>
     ),
   },
   {
-    header: "ID Number",
+    header: "Nro. Documento",
     render: (e) => (
       <span className="text-muted-foreground">{e.idNumber}</span>
     ),
   },
   {
-    header: "Type",
+    header: "Tipo",
     render: (e) => {
       const typeConfig = {
         VALET: { bg: "bg-blue-100", text: "text-blue-800", label: "Valet" },
-        ATTENDANT: { bg: "bg-purple-100", text: "text-purple-800", label: "Attendant" },
-        MANAGER: { bg: "bg-green-100", text: "text-green-800", label: "Manager" },
+        ATTENDANT: { bg: "bg-purple-100", text: "text-purple-800", label: "Asistente" },
+        MANAGER: { bg: "bg-green-100", text: "text-green-800", label: "Gerente" },
       };
       const config = typeConfig[e.type as keyof typeof typeConfig] || typeConfig.VALET;
       return (
@@ -49,7 +49,7 @@ const columns: Column<Employee>[] = [
     },
   },
   {
-    header: "Email",
+    header: "Correo",
     render: (e) => (
       <span className="text-muted-foreground">{e.email || "-"}</span>
     ),
@@ -98,7 +98,7 @@ export default function AdminEmployeesPage() {
   }
 
   const actionColumn: Column<Employee> = {
-    header: "Actions",
+    header: "Acciones",
     className: "text-right",
     render: (e) => (
       <Button
@@ -114,11 +114,11 @@ export default function AdminEmployeesPage() {
 
   return (
     <AdminLayout
-      title="Employees"
-      subtitle="Manage team and vehicles"
+      title="Empleados"
+      subtitle="Gestionar equipo y vehículos"
       actions={
         <Button onClick={modal.open} className="uppercase">
-          Create Employee
+          Crear Empleado
         </Button>
       }
     >
@@ -126,7 +126,7 @@ export default function AdminEmployeesPage() {
         <Search className="h-4 w-4 text-muted-foreground" />
         <input
           type="text"
-          placeholder="Search by name or ID number..."
+          placeholder="Buscar por nombre o número de documento..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
@@ -135,21 +135,21 @@ export default function AdminEmployeesPage() {
       <DataTable
         columns={[...columns, actionColumn]}
         data={filteredEmployees}
-        emptyMessage="No employees registered"
-        title="Employee List"
+        emptyMessage="No hay empleados registrados"
+        title="Lista de Empleados"
         keyExtractor={(e) => e.id}
       />
 
       <Modal
         isOpen={modal.isOpen}
         onClose={modal.close}
-        title="Create Employee"
-        description="Complete the details to register the employee"
+        title="Crear Empleado"
+        description="Completa los datos para registrar el empleado"
         size="md"
       >
         <form onSubmit={onSubmit} className="space-y-4">
           <SelectField
-            label="Employee Type"
+            label="Tipo de Empleado"
             id="employeeType"
             value={modal.values.employeeType}
             onChange={(v) =>
@@ -159,41 +159,41 @@ export default function AdminEmployeesPage() {
           />
 
           <FormField
-            label="Name"
+            label="Nombre"
             id="name"
             value={modal.values.name}
             onChange={(e) => modal.setField("name", e.target.value)}
             icon={<User className="h-4 w-4" />}
-            placeholder="Full name"
+            placeholder="Nombre completo"
             required
           />
 
           <FormField
-            label="ID Number"
+            label="Nro. Documento"
             id="idNumber"
             value={modal.values.idNumber}
             onChange={(e) => modal.setField("idNumber", e.target.value)}
-            placeholder="Document number"
+            placeholder="Número de documento"
             required
           />
 
           {modal.values.employeeType === "ATTENDANT" && (
             <FormField
-              label="Email"
+              label="Correo"
               id="email"
               type="email"
               value={modal.values.email}
               onChange={(e) => modal.setField("email", e.target.value)}
-              placeholder="email@example.com"
+              placeholder="correo@ejemplo.com"
               required
             />
           )}
 
           <div className="flex items-center justify-end gap-2">
             <Button variant="outline" type="button" onClick={modal.close}>
-              Cancel
+              Cancelar
             </Button>
-            <Button type="submit">Create</Button>
+            <Button type="submit">Crear</Button>
           </div>
         </form>
       </Modal>

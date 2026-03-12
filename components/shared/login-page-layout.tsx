@@ -19,8 +19,8 @@ export function LoginPageLayout({ children }: LoginPageLayoutProps) {
 
         <Card>
           <CardHeader>
-            <CardTitle>Sign In</CardTitle>
-            <CardDescription>Enter your credentials to access the system</CardDescription>
+            <CardTitle>Iniciar Sesión</CardTitle>
+            <CardDescription>Ingresa tus credenciales para acceder al sistema</CardDescription>
           </CardHeader>
           <CardContent>
             {children}
