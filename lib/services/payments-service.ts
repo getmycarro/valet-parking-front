@@ -86,6 +86,13 @@ export interface CreatePaymentMethodRequest {
   form: string;
 }
 
+export interface UpdatePaymentMethodRequest {
+  type?: PaymentMethodType;
+  name?: string;
+  form?: string;
+  isActive?: boolean;
+}
+
 export interface UpdatePaymentStatusRequest {
   status: PaymentStatus;
 }
@@ -158,5 +165,26 @@ export const paymentsService = {
    */
   async getMethods(): Promise<PaymentMethod[]> {
     return apiClient.get<PaymentMethod[]>('/payments/methods');
+  },
+
+  /**
+   * Obtener métodos de pago de una company
+   */
+  async getCompanyMethods(companyId: string): Promise<PaymentMethod[]> {
+    return apiClient.get<PaymentMethod[]>(`/companies/${companyId}/payment-methods`);
+  },
+
+  /**
+   * Registrar un método de pago para una company
+   */
+  async createCompanyMethod(companyId: string, data: CreatePaymentMethodRequest): Promise<PaymentMethod> {
+    return apiClient.post<PaymentMethod>(`/companies/${companyId}/payment-methods`, data);
+  },
+
+  /**
+   * Editar un método de pago de una company
+   */
+  async updateCompanyMethod(companyId: string, methodId: string, data: UpdatePaymentMethodRequest): Promise<PaymentMethod> {
+    return apiClient.patch<PaymentMethod>(`/companies/${companyId}/payment-methods/${methodId}`, data);
   },
 };
