@@ -14,6 +14,7 @@ import {
   Calendar,
   Pencil,
   Plus,
+  Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,28 @@ import {
   usersService,
   type AdminUser,
 } from "@/lib/services/users-service";
+import {
+  paymentsService,
+  type PaymentMethod,
+  type CreatePaymentMethodRequest,
+  type UpdatePaymentMethodRequest,
+} from "@/lib/services/payments-service";
+
+const PAYMENT_METHOD_TYPE_OPTIONS = [
+  { value: "ZELLE", label: "Zelle" },
+  { value: "MOBILE_PAYMENT", label: "Pago Móvil" },
+  { value: "BINANCE", label: "Binance" },
+  { value: "CASH", label: "Efectivo" },
+  { value: "CARD", label: "Tarjeta" },
+];
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  ZELLE: "Zelle",
+  MOBILE_PAYMENT: "Pago Móvil",
+  BINANCE: "Binance",
+  CASH: "Efectivo",
+  CARD: "Tarjeta",
+};
 
 const PLAN_LABELS: Record<string, string> = {
   FLAT_RATE: "Flat Rate",
@@ -123,6 +146,14 @@ const [savingInvoice, setSavingInvoice] = useState(false);
   // Invoice updating
   const [updatingInvoiceId, setUpdatingInvoiceId] = useState<string | null>(null);
 
+  // Payment methods
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [pmModalOpen, setPmModalOpen] = useState(false);
+  const [pmModalMode, setPmModalMode] = useState<"create" | "edit">("create");
+  const [editingMethodId, setEditingMethodId] = useState<string | null>(null);
+  const [pmForm, setPmForm] = useState<CreatePaymentMethodRequest>({ type: "ZELLE", name: "", form: "" });
+  const [savingPm, setSavingPm] = useState(false);
+
   const fetchCompany = useCallback(async () => {
     setLoading(true);
     try {
@@ -138,9 +169,19 @@ const [savingInvoice, setSavingInvoice] = useState(false);
     }
   }, [companyId, router]);
 
+  const fetchPaymentMethods = useCallback(async () => {
+    try {
+      const methods = await paymentsService.getCompanyMethods(companyId);
+      setPaymentMethods(methods);
+    } catch {
+      // handled by interceptor
+    }
+  }, [companyId]);
+
   useEffect(() => {
     fetchCompany();
-  }, [fetchCompany]);
+    fetchPaymentMethods();
+  }, [fetchCompany, fetchPaymentMethods]);
 
   // Search admins
   useEffect(() => {
@@ -290,6 +331,47 @@ const [savingInvoice, setSavingInvoice] = useState(false);
     setSavingInvoice(false);
   }
 }
+  function openCreatePmModal() {
+    setPmModalMode("create");
+    setEditingMethodId(null);
+    setPmForm({ type: "ZELLE", name: "", form: "" });
+    setPmModalOpen(true);
+  }
+
+  function openEditPmModal(method: PaymentMethod) {
+    setPmModalMode("edit");
+    setEditingMethodId(method.id);
+    setPmForm({ type: method.type, name: method.name, form: method.form });
+    setPmModalOpen(true);
+  }
+
+  async function handleSavePm(e: React.FormEvent) {
+    e.preventDefault();
+    setSavingPm(true);
+    try {
+      if (pmModalMode === "edit" && editingMethodId) {
+        await paymentsService.updateCompanyMethod(companyId, editingMethodId, pmForm);
+      } else {
+        await paymentsService.createCompanyMethod(companyId, pmForm);
+      }
+      setPmModalOpen(false);
+      await fetchPaymentMethods();
+    } catch {
+      // handled by interceptor
+    } finally {
+      setSavingPm(false);
+    }
+  }
+
+  async function handleTogglePmActive(method: PaymentMethod) {
+    try {
+      await paymentsService.updateCompanyMethod(companyId, method.id, { isActive: !method.isActive });
+      await fetchPaymentMethods();
+    } catch {
+      // handled by interceptor
+    }
+  }
+
   function openCreatePlanModal() {
     setPlanModalMode("create");
     setEditingPlanId(null);
@@ -585,6 +667,76 @@ const [savingInvoice, setSavingInvoice] = useState(false);
           </CardContent>
         </Card>
 
+        {/* Payment Methods Card */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between w-full">
+              <CardTitle className="flex items-center gap-2">
+                <Wallet className="w-5 h-5" /> Métodos de pago ({paymentMethods.length})
+              </CardTitle>
+              <Button onClick={openCreatePmModal} variant="outline" size="sm">
+                <Plus className="w-4 h-4 mr-1" /> Nuevo
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {paymentMethods.length > 0 ? (
+              <div className="border border-border rounded-md overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/50">
+                      <th className="text-left px-3 py-2 font-medium text-muted-foreground">Nombre</th>
+                      <th className="text-left px-3 py-2 font-medium text-muted-foreground">Tipo</th>
+                      <th className="text-left px-3 py-2 font-medium text-muted-foreground">Cuenta / Form</th>
+                      <th className="text-center px-3 py-2 font-medium text-muted-foreground">Estado</th>
+                      <th className="text-right px-3 py-2 font-medium text-muted-foreground">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {paymentMethods.map((m) => (
+                      <tr key={m.id} className="hover:bg-muted/50 transition-colors">
+                        <td className="px-3 py-3 font-medium">{m.name}</td>
+                        <td className="px-3 py-3 text-muted-foreground">
+                          {PAYMENT_METHOD_LABELS[m.type] ?? m.type}
+                        </td>
+                        <td className="px-3 py-3 font-mono text-xs">{m.form}</td>
+                        <td className="px-3 py-3 text-center">
+                          <button
+                            type="button"
+                            onClick={() => handleTogglePmActive(m)}
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer transition-colors ${
+                              m.isActive
+                                ? "bg-green-100 text-green-800 hover:bg-green-200"
+                                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                            }`}
+                          >
+                            {m.isActive ? "Activo" : "Inactivo"}
+                          </button>
+                        </td>
+                        <td className="px-3 py-3 text-right">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => openEditPmModal(m)}
+                            title="Editar método"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground italic py-3 px-3 bg-muted/20 rounded-md">
+                No hay métodos de pago registrados
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Users Card */}
         <Card>
           <CardHeader>
@@ -870,6 +1022,50 @@ const [savingInvoice, setSavingInvoice] = useState(false);
         </form>
       </Modal>
 
+
+      {/* Payment Method Modal */}
+      <Modal
+        isOpen={pmModalOpen}
+        onClose={() => setPmModalOpen(false)}
+        title={pmModalMode === "edit" ? "Editar método de pago" : "Nuevo método de pago"}
+        description="Configura los datos del método de pago para esta company"
+        size="md"
+      >
+        <form onSubmit={handleSavePm} className="space-y-4">
+          <SelectField
+            label="Tipo"
+            id="pmType"
+            value={pmForm.type}
+            onChange={(val) => setPmForm((prev) => ({ ...prev, type: val as CreatePaymentMethodRequest["type"] }))}
+            options={PAYMENT_METHOD_TYPE_OPTIONS}
+            required
+          />
+          <FormField
+            label="Nombre"
+            id="pmName"
+            value={pmForm.name}
+            onChange={(e) => setPmForm((prev) => ({ ...prev, name: e.target.value }))}
+            placeholder="Ej: Zelle principal"
+            required
+          />
+          <FormField
+            label="Cuenta / Identificador"
+            id="pmForm"
+            value={pmForm.form}
+            onChange={(e) => setPmForm((prev) => ({ ...prev, form: e.target.value }))}
+            placeholder="Ej: correo@email.com o 04XX-XXXXXXX"
+            required
+          />
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <Button variant="outline" type="button" onClick={() => setPmModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={savingPm}>
+              {savingPm ? "Guardando..." : pmModalMode === "edit" ? "Guardar cambios" : "Crear método"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Invoice Modal*/}
       <Modal

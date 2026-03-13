@@ -10,6 +10,8 @@ export interface PaymentMethod {
   name: string;
   form: string;
   isActive: boolean;
+  companyId?: string | null;
+  company?: { id: string; name: string } | null;
   createdAt: string;
   updatedAt: string;
 }

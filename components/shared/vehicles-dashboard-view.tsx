@@ -122,13 +122,17 @@ export function VehiclesDashboardView({
     vehiclesService.getValets().then(setValets).catch(() => {});
   }, []);
 
-  // Payment methods fetched directly from the API
+  // Payment methods fetched directly from the API (company-scoped if companyId is available)
   const [paymentMethods, setPaymentMethods] = useState<
     { id: string; name: string; form: string; type: string; isActive: boolean }[]
   >([]);
   useEffect(() => {
-    paymentsService.getMethods().then(setPaymentMethods).catch(() => {});
-  }, []);
+    if (companyId) {
+      paymentsService.getCompanyMethods(companyId).then(setPaymentMethods).catch(() => {});
+    } else {
+      paymentsService.getMethods().then(setPaymentMethods).catch(() => {});
+    }
+  }, [companyId]);
 
   // Checkout dialog state (assign valet de salida)
   const [checkoutOpen, setCheckoutOpen] = useState(false);

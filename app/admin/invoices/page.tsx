@@ -74,6 +74,7 @@ export default function InvoicesPage() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [loadingMethods, setLoadingMethods] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<InvoiceRow | null>(null);
   const [editForm, setEditForm] = useState({ reference: "", paymentMethodId: "", amountUSD: "" });
   const [saving, setSaving] = useState(false);
@@ -114,16 +115,24 @@ export default function InvoicesPage() {
 
   useEffect(() => {
     fetchInvoices();
-    paymentsService.getMethods().then(setPaymentMethods).catch(() => {});
   }, [fetchInvoices]);
 
-  const openEdit = useCallback((inv: InvoiceRow) => {
+  const openEdit = useCallback(async (inv: InvoiceRow) => {
     setEditingInvoice(inv);
     setEditForm({
       reference: inv.reference ?? "",
       paymentMethodId: inv.paymentMethodId ?? "",
       amountUSD: String(inv.amountUSD),
     });
+    setLoadingMethods(true);
+    try {
+      const methods = await paymentsService.getCompanyMethods(inv.companyId);
+      setPaymentMethods(methods);
+    } catch {
+      setPaymentMethods([]);
+    } finally {
+      setLoadingMethods(false);
+    }
   }, []);
 
   const handleSave = useCallback(async () => {
@@ -358,14 +367,20 @@ export default function InvoicesPage() {
               <Select
                 value={editForm.paymentMethodId}
                 onValueChange={(val) => setEditForm((f) => ({ ...f, paymentMethodId: val }))}
+                disabled={loadingMethods}
               >
                 <SelectTrigger id="edit-method">
-                  <SelectValue placeholder="Select method" />
+                  <SelectValue placeholder={loadingMethods ? "Cargando..." : "Select method"} />
                 </SelectTrigger>
                 <SelectContent>
+                  {paymentMethods.length === 0 && !loadingMethods && (
+                    <SelectItem value="__none__" disabled>
+                      Sin métodos de pago
+                    </SelectItem>
+                  )}
                   {paymentMethods.map((pm) => (
                     <SelectItem key={pm.id} value={pm.id}>
-                      {pm.name}
+                      {pm.name} — {pm.form}
                     </SelectItem>
                   ))}
                 </SelectContent>

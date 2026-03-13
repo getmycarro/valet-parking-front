@@ -14,6 +14,7 @@ import {
   FileText,
   Sun,
   Moon,
+  Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,12 @@ const menuItems: MenuItem[] = [
     label: "Facturas",
     href: "/admin/invoices",
     roles: ["admin", "manager"],
+  },
+  {
+    icon: Wallet,
+    label: "Métodos de pago",
+    href: "/admin/payment-methods",
+    roles: ["admin"],
   },
 
   {
