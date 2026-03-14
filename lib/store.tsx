@@ -25,6 +25,7 @@ import { vehiclesService } from "@/lib/services/vehicles-service";
 import { paymentsService } from "@/lib/services/payments-service";
 import { employeesService, type CreateEmployeeRequest } from "@/lib/services/employees-service";
 import { useAuth } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
 
 type State = {
   cars: Car[];
@@ -226,6 +227,55 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     loadData();
   }, [user]);
+
+  // Suscripción a Supabase Realtime — escucha broadcasts del canal de la compañía
+  useEffect(() => {
+    if (!user?.companyId) return;
+
+    const channel = supabase
+      .channel(`company-${user.companyId}`)
+      .on("broadcast", { event: "car_registered" }, ({ payload }) => {
+        const car = mapParkingRecordToCar(payload);
+        dispatch({ type: "registerCarManual", payload: car });
+      })
+      .on("broadcast", { event: "car_delivered" }, ({ payload }) => {
+        dispatch({
+          type: "deliverCar",
+          payload: {
+            carId: payload.id,
+            checkOutAt: new Date(payload.checkOutAt).getTime(),
+            checkOutValetId: payload.checkOutValetId,
+            checkOutValet: payload.checkOutValet,
+          },
+        });
+      })
+      .on("broadcast", { event: "payment_created" }, ({ payload }) => {
+        const p: PaymentRecord = {
+          id: payload.id,
+          parkingRecordId: payload.parkingRecordId,
+          methodId: payload.paymentMethodId ?? payload.methodId,
+          amountUSD: payload.amountUSD,
+          tip: payload.tip ?? 0,
+          date: new Date(payload.date ?? payload.createdAt).getTime(),
+          status: (payload.status as string).toLowerCase() as PaymentStatus,
+        };
+        dispatch({ type: "addPayment", payload: p });
+      })
+      .on("broadcast", { event: "payment_updated" }, ({ payload }) => {
+        dispatch({
+          type: "updatePaymentStatus",
+          payload: {
+            paymentId: payload.id,
+            status: (payload.status as string).toLowerCase() as PaymentStatus,
+          },
+        });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.companyId]);
 
   const api = useMemo<StoreCtx>(
     () => ({

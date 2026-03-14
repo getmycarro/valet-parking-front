@@ -16,6 +16,7 @@ export interface LoginResponse {
     phone?: string;
     idNumber?: string;
     photoUrl?: string;
+    companyId?: string;
   };
   accessToken: string;
 }
@@ -37,6 +38,7 @@ export interface User {
   phone?: string;
   idNumber?: string;
   photoUrl?: string;
+  companyId?: string;
 }
 
 /**
