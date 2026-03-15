@@ -52,3 +52,14 @@ export type Employee = {
   email?: string;
   photoUrl?: string;
 };
+
+export type AppNotification = {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  data: Record<string, unknown>;
+  companyId?: string;
+  createdAt: number;
+  read: boolean;
+};

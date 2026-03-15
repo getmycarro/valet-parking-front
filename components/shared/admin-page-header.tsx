@@ -19,17 +19,10 @@ type Props = {
   title: string;
   subtitle?: string;
   userName: string;
-  notificationCount?: number;
   onLogout: () => void;
 };
 
-export function AdminPageHeader({
-  title,
-  subtitle,
-  userName,
-  notificationCount = 0,
-  onLogout,
-}: Props) {
+export function AdminPageHeader({ title, subtitle, userName, onLogout }: Props) {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
@@ -43,13 +36,7 @@ export function AdminPageHeader({
             ) : null}
           </div>
           <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              size="icon"
-              className="relative bg-transparent"
-            >
-              <NotificationBell count={notificationCount} />
-            </Button>
+            <NotificationBell />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center gap-2">

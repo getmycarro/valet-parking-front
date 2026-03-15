@@ -22,7 +22,7 @@ export type User = {
   phone?: string;
   idNumber?: string;
   photoUrl?: string;
-  companyId?: string;
+  companyUsers?: { company: { id: string; name: string } }[];
 };
 
 type AuthCtx = {
@@ -67,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             phone: apiUser.phone,
             idNumber: apiUser.idNumber,
             photoUrl: apiUser.photoUrl,
-            companyId: apiUser.companyId,
+            companyUsers: apiUser.companyUsers,
           });
         }
       } catch (error) {
@@ -98,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             phone: response.user.phone,
             idNumber: response.user.idNumber,
             photoUrl: response.user.photoUrl,
-            companyId: response.user.companyId,
+            companyUsers: response.user.companyUsers,
           });
           return role;
         } catch (error) {

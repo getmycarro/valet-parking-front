@@ -4,7 +4,6 @@ import { AdminSidebar } from "@/components/admin/admin-sidebar"
 import { AdminPageHeader } from "@/components/shared/admin-page-header"
 import { useAuth } from "@/lib/auth"
 import { useRouter } from "next/navigation"
-import { useStore } from "@/lib/store"
 
 interface AdminLayoutProps {
   children: ReactNode
@@ -17,9 +16,6 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const { user, logout } = useAuth()
   const router = useRouter()
-  const { state } = useStore()
-
-  const activeCarsCount = state.cars.filter((c) => !c.checkOutAt).length
 
   const handleLogout = () => {
     logout()
@@ -43,7 +39,6 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
           title={title}
           subtitle={subtitle}
           userName={user?.name || "Admin"}
-          notificationCount={activeCarsCount}
           onLogout={handleLogout}
         />
 

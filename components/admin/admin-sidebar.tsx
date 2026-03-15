@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
 import {
   Car,
   LayoutDashboard,
@@ -89,6 +90,8 @@ const roleLabels: Record<UserRole, string> = {
 export function AdminSidebar({ isOpen, onToggle, userRole }: AdminSidebarProps) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const visibleItems = menuItems.filter((item) => item.roles.includes(userRole));
 
   return (
@@ -155,16 +158,16 @@ export function AdminSidebar({ isOpen, onToggle, userRole }: AdminSidebarProps) 
               "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors w-full",
               "text-muted-foreground hover:bg-secondary hover:text-foreground"
             )}
-            title={theme === "dark" ? "Modo claro" : "Modo oscuro"}
+            title={mounted ? (theme === "dark" ? "Modo claro" : "Modo oscuro") : "Tema"}
           >
-            {theme === "dark" ? (
+            {mounted && theme === "dark" ? (
               <Sun className="w-5 h-5 flex-shrink-0" />
             ) : (
               <Moon className="w-5 h-5 flex-shrink-0" />
             )}
             {isOpen && (
               <span className="text-sm font-medium">
-                {theme === "dark" ? "Modo Claro" : "Modo Oscuro"}
+                {mounted ? (theme === "dark" ? "Modo Claro" : "Modo Oscuro") : "Tema"}
               </span>
             )}
           </button>
