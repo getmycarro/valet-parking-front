@@ -13,7 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Loader2, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
+import { Loader2, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown, Check, X } from "lucide-react";
 import { paymentsService, type Payment, type PaymentsListResponse } from "@/lib/services/payments-service";
 
 function formatRelativeTime(ts: string) {
@@ -55,6 +55,8 @@ export function RecentTransactions({ companyId, onMetaUpdate }: Props) {
   const [dateTo, setDateTo] = useState('');
   const [sortBy, setSortBy] = useState<'createdAt' | 'amountUSD' | 'paymentMethod'>('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [actionLoading, setActionLoading] = useState<Record<string, 'approving' | 'rejecting'>>({});
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const handleSort = (column: 'createdAt' | 'amountUSD' | 'paymentMethod') => {
     if (sortBy === column) {
@@ -97,7 +99,7 @@ export function RecentTransactions({ companyId, onMetaUpdate }: Props) {
     }
     load();
     return () => { cancelled = true; };
-  }, [page, status, companyId, dateFrom, dateTo, sortBy, sortOrder]);
+  }, [page, status, companyId, dateFrom, dateTo, sortBy, sortOrder, refreshKey]);
 
   const payments = response?.data ?? [];
   const meta = response?.meta;
@@ -118,6 +120,24 @@ export function RecentTransactions({ companyId, onMetaUpdate }: Props) {
       });
     }
   }, [meta, onMetaUpdate, page, status]);
+
+  const handleUpdateStatus = async (id: string, action: 'approving' | 'rejecting') => {
+    setActionLoading((prev) => ({ ...prev, [id]: action }));
+    try {
+      await paymentsService.updateStatus(id, {
+        status: action === 'approving' ? 'RECEIVED' : 'CANCELLED',
+      });
+      setRefreshKey((k) => k + 1);
+    } catch {
+      // silently fail
+    } finally {
+      setActionLoading((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    }
+  };
 
   return (
     <Card>
@@ -209,11 +229,13 @@ export function RecentTransactions({ companyId, onMetaUpdate }: Props) {
                 </button>
               </TableHead>
               <TableHead>Estado</TableHead>
+              <TableHead>Referencia</TableHead>
               <TableHead className="text-right">
                 <button onClick={() => handleSort('createdAt')} className="flex items-center ml-auto hover:text-foreground transition-colors">
                   Hora <SortIcon column="createdAt" />
                 </button>
               </TableHead>
+              <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -244,15 +266,52 @@ export function RecentTransactions({ companyId, onMetaUpdate }: Props) {
                     {mapStatus(p.status)}
                   </Badge>
                 </TableCell>
+                <TableCell className="text-sm text-muted-foreground max-w-[140px] truncate" title={p.reference || p.note || undefined}>
+                  {p.reference || p.note || "-"}
+                </TableCell>
                 <TableCell className="text-right text-muted-foreground text-sm">
                   {formatRelativeTime(p.date)}
+                </TableCell>
+                <TableCell className="text-right">
+                  {p.status === "PENDING" && (
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2 text-green-600 border-green-600 hover:bg-green-50 hover:text-green-700"
+                        disabled={!!actionLoading[p.id]}
+                        onClick={() => handleUpdateStatus(p.id, 'approving')}
+                        title="Aprobar pago"
+                      >
+                        {actionLoading[p.id] === 'approving' ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Check className="h-3 w-3" />
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2 text-destructive border-destructive hover:bg-red-50"
+                        disabled={!!actionLoading[p.id]}
+                        onClick={() => handleUpdateStatus(p.id, 'rejecting')}
+                        title="Rechazar pago"
+                      >
+                        {actionLoading[p.id] === 'rejecting' ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <X className="h-3 w-3" />
+                        )}
+                      </Button>
+                    </div>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
             {payments.length === 0 && !isLoading && (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={8}
                   className="text-center text-muted-foreground text-sm py-6"
                 >
                   No hay pagos registrados

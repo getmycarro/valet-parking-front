@@ -54,9 +54,8 @@ function formatDateTime(ts: string | number) {
 type TicketStatus = "red" | "yellow" | "green";
 
 function getTicketStatus(record: ParkingRecord): TicketStatus {
-  if (record.checkOutAt) return "green";
-  const hasPayment = record.payments && record.payments.length > 0;
-  if (hasPayment) return "yellow";
+  if (record.status === "FREE") return "green";
+  if (record.status === "PAID") return "yellow";
   return "red";
 }
 
@@ -665,7 +664,7 @@ export function VehiclesDashboardView({
                 amountUSD: amt,
                 tip: 0,
                 fee: selectedMethod.form,
-                validation: "MANUAL",
+                validation: "AUTOMATIC",
                 status: "received",
                 reference: payReferencia || undefined,
                 note: payNota || undefined,

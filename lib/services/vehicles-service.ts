@@ -1,11 +1,14 @@
 import { apiClient } from "../api-client";
 
+export type ParkingRecordStatus = "UNPAID" | "PAID" | "FREE";
+
 export interface ParkingRecord {
   id: string;
   plate: string;
   brand?: string;
   model?: string;
   color?: string;
+  status: ParkingRecordStatus;
   checkInAt: string; // ISO date string
   checkOutAt?: string; // ISO date string
   // qrData?: string; // QR deshabilitado
@@ -90,9 +93,10 @@ export interface VehiclesListResponse {
     total: number;
     totalPages: number;
     // Contadores estáticos por estado (incluyen todos los registros, no solo la página actual)
-    active: number;              // Vehículos sin pago
-    pending_delivery: number;    // Vehículos pagados, pendientes de entrega
-    completed: number;           // Vehículos entregados
+    active: number;              // Vehículos UNPAID
+    pending_delivery: number;    // Vehículos PAID, pendientes de entrega
+    completed: number;           // Vehículos FREE (entregados)
+    all: number;                 // Total sin filtro de status
   };
 }
 
