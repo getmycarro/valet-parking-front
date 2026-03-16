@@ -145,6 +145,7 @@ export function VehiclesDashboardView({
   const [detailRecord, setDetailRecord] = useState<ParkingRecord | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
+
   // Refresh when parent signals (e.g., after vehicle registration)
   useEffect(() => {
     if (refreshKey > 0) refresh();
@@ -956,6 +957,7 @@ export function VehiclesDashboardView({
                   );
                 })()}
               </div>
+
             </div>
           ) : (
             <p className="text-center text-muted-foreground py-4">

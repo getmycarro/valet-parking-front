@@ -87,7 +87,11 @@ export function useNotifications() {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
-    notificationsService.markRead(id).catch(() => {});
+    try {
+      await notificationsService.markRead(id);
+    } catch {
+      // optimistic update already applied; ignore API errors silently
+    }
   }, []);
 
   const markAllAsRead = useCallback(async () => {

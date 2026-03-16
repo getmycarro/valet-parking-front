@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Car, Bell } from "lucide-react";
+import { Car } from "lucide-react";
 import { SidebarLayout } from "@/components/ui/sidebar-layout";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { VehiclesDashboardView } from "@/components/shared/vehicles-dashboard-view";
 import { VehicleRegistrationForm } from "@/components/shared/vehicle-registration-form";
 import { Modal } from "@/components/ui/modal";
+import { NotificationBell } from "@/components/shared/notification-bell";
 
 export default function AttendantDashboardPage() {
   const { user } = useAuth();
@@ -40,16 +41,7 @@ export default function AttendantDashboardPage() {
             <Button onClick={() => setRegOpen(true)} className="uppercase">
               Register Vehicle
             </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="relative bg-transparent"
-            >
-              <Bell className="w-4 h-4" />
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center">
-                3
-              </span>
-            </Button>
+            <NotificationBell />
           </div>
         </div>
         <VehiclesDashboardView showSearch={false} />

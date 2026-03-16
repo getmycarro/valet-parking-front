@@ -48,4 +48,11 @@ export const notificationsService = {
   async markAllRead(): Promise<void> {
     await apiClient.patch("/notifications/read-all", {});
   },
+
+  async startObjectSearch(data: {
+    parkingRecordId: string;
+    notes?: string;
+  }): Promise<void> {
+    await apiClient.post("/notifications/object-search-in-progress", data);
+  },
 };
