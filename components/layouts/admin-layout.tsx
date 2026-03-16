@@ -4,6 +4,7 @@ import { AdminSidebar } from "@/components/admin/admin-sidebar"
 import { AdminPageHeader } from "@/components/shared/admin-page-header"
 import { useAuth } from "@/lib/auth"
 import { useRouter } from "next/navigation"
+import { NotificationsProvider } from "@/lib/context/notifications-context"
 
 interface AdminLayoutProps {
   children: ReactNode
@@ -23,6 +24,7 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
   }
 
   return (
+    <NotificationsProvider>
     <div className="min-h-screen bg-background flex">
       <AdminSidebar
         isOpen={sidebarOpen}
@@ -53,5 +55,6 @@ export function AdminLayout({ children, title, subtitle, actions }: AdminLayoutP
         </div>
       </main>
     </div>
+    </NotificationsProvider>
   )
 }

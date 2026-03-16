@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,8 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Loader2, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown, Check, X } from "lucide-react";
-import { paymentsService, type Payment, type PaymentsListResponse } from "@/lib/services/payments-service";
+import { paymentsService, type Payment, type PaymentsListResponse, type PaymentStatus } from "@/lib/services/payments-service";
+import { useNotificationsContext } from "@/lib/context/notifications-context";
 
 function formatRelativeTime(ts: string) {
   const diffMs = Date.now() - new Date(ts).getTime();
@@ -58,6 +59,9 @@ export function RecentTransactions({ companyId, onMetaUpdate }: Props) {
   const [actionLoading, setActionLoading] = useState<Record<string, 'approving' | 'rejecting'>>({});
   const [refreshKey, setRefreshKey] = useState(0);
 
+  const { lastSSENotification } = useNotificationsContext();
+  const lastSSEIdRef = useRef<string | null>(null);
+
   const handleSort = (column: 'createdAt' | 'amountUSD' | 'paymentMethod') => {
     if (sortBy === column) {
       setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
@@ -74,6 +78,35 @@ export function RecentTransactions({ companyId, onMetaUpdate }: Props) {
       ? <ArrowUp className="h-3 w-3 ml-1" />
       : <ArrowDown className="h-3 w-3 ml-1" />;
   };
+
+  // Real-time updates from SSE
+  useEffect(() => {
+    if (!lastSSENotification) return;
+    if (lastSSEIdRef.current === lastSSENotification.id) return;
+    lastSSEIdRef.current = lastSSENotification.id;
+
+    const { type, data } = lastSSENotification;
+
+    if (type === "PAYMENT_REGISTERED") {
+      // Refetch to pull the full new payment object from the API
+      setRefreshKey((k) => k + 1);
+    } else if (type === "PAYMENT_STATUS_UPDATED") {
+      const d = data as { paymentId?: string; status?: string };
+      if (d.paymentId && d.status) {
+        setResponse((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            data: prev.data.map((p) =>
+              p.id === d.paymentId
+                ? { ...p, status: d.status as PaymentStatus }
+                : p
+            ),
+          };
+        });
+      }
+    }
+  }, [lastSSENotification]);
 
   useEffect(() => {
     let cancelled = false;
