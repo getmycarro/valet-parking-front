@@ -13,7 +13,21 @@ import {
   Loader2,
   X,
   Eye,
+  MoreHorizontal,
+  Bell,
+  CreditCard,
+  Truck,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { notificationsService } from "@/lib/services/notifications-service";
+import { toast } from "sonner";
 import { useStore } from "@/lib/store";
 import type { PaymentRecord } from "@/lib/types";
 import { Modal } from "@/components/ui/modal";
@@ -138,6 +152,12 @@ export function VehiclesDashboardView({
   const [checkoutCarId, setCheckoutCarId] = useState<string | null>(null);
   const [checkoutValetId, setCheckoutValetId] = useState("");
   const [checkoutNotes, setCheckoutNotes] = useState("");
+
+  // Approach counter notification dialog state
+  const [approachOpen, setApproachOpen] = useState(false);
+  const [approachRecordId, setApproachRecordId] = useState<string | null>(null);
+  const [approachNotes, setApproachNotes] = useState("");
+  const [approachLoading, setApproachLoading] = useState(false);
 
   // Detail modal state
   const [detailOpen, setDetailOpen] = useState(false);
@@ -490,46 +510,59 @@ export function VehiclesDashboardView({
                       {amount !== null ? `$${amount.toFixed(2)}` : "-"}
                     </td>
                     <td className="p-4 align-middle text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleOpenDetail(a.id)}
-                          title="Ver detalle"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        {status === "red" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="sm" variant="ghost">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => handleOpenDetail(a.id)}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            Ver detalle
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
                             onClick={() => {
-                              setPayCarId(a.id);
-                              setPayMonto(amount !== null ? String(amount) : "");
-                              setPayMethodId(paymentMethods.find((m) => m.isActive)?.id || "");
-                              setPayReferencia("");
-                              setPayNota("");
-                              setPayOpen(true);
+                              setApproachRecordId(a.id);
+                              setApproachNotes("");
+                              setApproachOpen(true);
                             }}
                           >
-                            Pago
-                          </Button>
-                        )}
-                        {status === "yellow" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setCheckoutCarId(a.id);
-                              setCheckoutValetId("");
-                              setCheckoutNotes("");
-                              setCheckoutOpen(true);
-                            }}
-                          >
-                            Entregar
-                          </Button>
-                        )}
-                      </div>
+                            <Bell className="mr-2 h-4 w-4" />
+                            Notificar al usuario
+                          </DropdownMenuItem>
+                          {status === "red" && (
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setPayCarId(a.id);
+                                setPayMonto(amount !== null ? String(amount) : "");
+                                setPayMethodId(paymentMethods.find((m) => m.isActive)?.id || "");
+                                setPayReferencia("");
+                                setPayNota("");
+                                setPayOpen(true);
+                              }}
+                            >
+                              <CreditCard className="mr-2 h-4 w-4" />
+                              Registrar pago
+                            </DropdownMenuItem>
+                          )}
+                          {status === "yellow" && (
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setCheckoutCarId(a.id);
+                                setCheckoutValetId("");
+                                setCheckoutNotes("");
+                                setCheckoutOpen(true);
+                              }}
+                            >
+                              <Truck className="mr-2 h-4 w-4" />
+                              Entregar vehículo
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </td>
                   </tr>
                 );
@@ -626,6 +659,65 @@ export function VehiclesDashboardView({
               Cancelar
             </Button>
             <Button onClick={handleCheckout} disabled={!checkoutValetId}>Confirmar entrega</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Approach counter notification dialog */}
+      <Dialog open={approachOpen} onOpenChange={setApproachOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Notificar al usuario</DialogTitle>
+            <DialogDescription>
+              Envía una notificación APPROACH_COUNTER al propietario del vehículo
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>Notas (opcional)</Label>
+              <textarea
+                className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm resize-y"
+                placeholder="Motivo adicional de la notificación..."
+                value={approachNotes}
+                onChange={(e) => setApproachNotes(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setApproachOpen(false);
+                setApproachRecordId(null);
+                setApproachNotes("");
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              disabled={!approachRecordId || approachLoading}
+              onClick={async () => {
+                if (!approachRecordId) return;
+                setApproachLoading(true);
+                try {
+                  await notificationsService.approachCounter({
+                    parkingRecordId: approachRecordId,
+                    notes: approachNotes || undefined,
+                  });
+                  toast.success("Notificación enviada al usuario");
+                  setApproachOpen(false);
+                  setApproachRecordId(null);
+                  setApproachNotes("");
+                } catch {
+                  toast.error("Error al enviar la notificación");
+                } finally {
+                  setApproachLoading(false);
+                }
+              }}
+            >
+              {approachLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Enviar notificación
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
