@@ -10,24 +10,14 @@ import {
   type ReactNode,
 } from "react";
 import { toast } from "sonner";
-import { apiClient } from "@/lib/api-client";
 import {
   notificationsService,
-  mapApiNotification,
-  type ApiNotification,
 } from "@/lib/services/notifications-service";
 import type { AppNotification } from "@/lib/types";
-
-const SSE_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
-const MAX_RETRY_DELAY_MS = 30_000;
 
 interface NotificationsContextValue {
   notifications: AppNotification[];
   unreadCount: number;
-  isConnected: boolean;
-  /** Most recent notification delivered via SSE (not from initial load). */
-  lastSSENotification: AppNotification | null;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
 }
@@ -76,70 +66,10 @@ function firePaymentToast(notification: AppNotification) {
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const [isConnected, setIsConnected] = useState(false);
-  const [lastSSENotification, setLastSSENotification] =
-    useState<AppNotification | null>(null);
 
-  const esRef = useRef<EventSource | null>(null);
-  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const retryDelayRef = useRef(1_000);
   const mountedRef = useRef(false);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastUnreadCountRef = useRef<number | null>(null);
-
-  const handleSSENotification = useCallback((notification: AppNotification) => {
-    setNotifications((prev) => {
-      const next = [notification, ...prev];
-      // keep lastUnreadCountRef in sync so polling doesn't cause a redundant reload
-      lastUnreadCountRef.current = next.filter((n) => !n.read).length;
-      return next;
-    });
-    setLastSSENotification(notification);
-    firePaymentToast(notification);
-  }, []);
-
-  const connect = useCallback(() => {
-    const token = apiClient.getToken();
-    if (!token || !mountedRef.current) return;
-
-    const url = `${SSE_BASE_URL}/notifications/stream?token=${encodeURIComponent(token)}`;
-    const es = new EventSource(url);
-    esRef.current = es;
-
-    es.onopen = () => {
-      if (!mountedRef.current) return;
-      setIsConnected(true);
-      retryDelayRef.current = 1_000;
-    };
-
-    es.onmessage = (event) => {
-      if (!mountedRef.current) return;
-      try {
-        const parsed = JSON.parse(event.data) as {
-          type: string;
-          payload?: ApiNotification;
-        };
-        if (parsed.type === "heartbeat") return;
-        if (parsed.type === "notification" && parsed.payload) {
-          handleSSENotification(mapApiNotification(parsed.payload));
-        }
-      } catch {
-        // ignore malformed events
-      }
-    };
-
-    es.onerror = () => {
-      if (!mountedRef.current) return;
-      setIsConnected(false);
-      es.close();
-      esRef.current = null;
-      const delay = retryDelayRef.current;
-      retryDelayRef.current = Math.min(delay * 2, MAX_RETRY_DELAY_MS);
-      retryTimeoutRef.current = setTimeout(() => {
-        if (mountedRef.current) connect();
-      }, delay);
-    };
-  }, [handleSSENotification]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadUnreadNotifications = useCallback(async () => {
     try {
@@ -162,7 +92,6 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     mountedRef.current = true;
 
     loadUnreadNotifications();
-    connect();
 
     pollIntervalRef.current = setInterval(async () => {
       if (!mountedRef.current) return;
@@ -173,7 +102,13 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
           lastUnreadCountRef.current = count;
           if (count > 0) {
             const unread = await notificationsService.getAllUnread();
-            if (mountedRef.current) setNotifications(unread);
+            if (mountedRef.current) {
+              setNotifications(unread);
+              // fire toasts for newly arrived unread notifications
+              unread
+                .filter((n) => !n.read)
+                .forEach(firePaymentToast);
+            }
           } else {
             setNotifications([]);
           }
@@ -185,11 +120,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
     return () => {
       mountedRef.current = false;
-      esRef.current?.close();
-      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
     };
-  }, [connect, loadUnreadNotifications]);
+  }, [loadUnreadNotifications]);
 
   const markAsRead = useCallback(async (id: string) => {
     setNotifications((prev) => {
@@ -219,8 +152,6 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       value={{
         notifications,
         unreadCount,
-        isConnected,
-        lastSSENotification,
         markAsRead,
         markAllAsRead,
       }}

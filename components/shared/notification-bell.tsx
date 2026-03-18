@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Bell, CheckCheck, WifiOff, CheckCircle2 } from "lucide-react";
+import { Bell, CheckCheck, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -190,7 +190,7 @@ function NotificationDetail({
 // ─── Bell ────────────────────────────────────────────────────────────────────
 
 export function NotificationBell() {
-  const { notifications, unreadCount, isConnected, markAsRead, markAllAsRead } =
+  const { notifications, unreadCount, markAsRead, markAllAsRead } =
     useNotifications();
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -207,9 +207,6 @@ export function NotificationBell() {
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="icon" className="relative bg-transparent">
             <Bell className="h-5 w-5" />
-            {!isConnected && (
-              <WifiOff className="absolute -bottom-1 -right-1 h-3.5 w-3.5 text-destructive bg-background rounded-full p-0.5" />
-            )}
             {unreadCount > 0 && (
               <Badge className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-0 px-1 text-xs">
                 {unreadCount > 99 ? "99+" : unreadCount}
@@ -223,12 +220,6 @@ export function NotificationBell() {
           <div className="flex items-center justify-between px-3 py-2 border-b border-border">
             <div className="flex items-center gap-2">
               <p className="text-sm font-semibold">Notificaciones</p>
-              {!isConnected && (
-                <span className="flex items-center gap-1 text-xs text-destructive">
-                  <WifiOff className="h-3 w-3" />
-                  Desconectado
-                </span>
-              )}
             </div>
             {unreadCount > 0 && (
               <button
