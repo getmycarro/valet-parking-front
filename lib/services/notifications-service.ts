@@ -14,6 +14,18 @@ export interface ApiNotification {
   updatedAt?: string;
 }
 
+interface PaginatedMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+interface PaginatedResponse<T> {
+  data: T[];
+  meta: PaginatedMeta;
+}
+
 export function mapApiNotification(n: ApiNotification): AppNotification {
   let data: Record<string, unknown> = {};
   if (typeof n.data === "string") {
@@ -36,9 +48,34 @@ export function mapApiNotification(n: ApiNotification): AppNotification {
 }
 
 export const notificationsService = {
-  async getAll(): Promise<AppNotification[]> {
-    const results = await apiClient.get<ApiNotification[]>("/notifications");
-    return results.map(mapApiNotification);
+  async getUnreadCount(): Promise<number> {
+    const result = await apiClient.get<{ unreadCount: number }>(
+      "/notifications/unread-count"
+    );
+    return result.unreadCount;
+  },
+
+  async getUnreadPage(
+    page: number,
+    limit = 20
+  ): Promise<{ notifications: AppNotification[]; totalPages: number }> {
+    const result = await apiClient.get<PaginatedResponse<ApiNotification>>(
+      `/notifications?isRead=false&limit=${limit}&page=${page}`
+    );
+    return {
+      notifications: result.data.map(mapApiNotification),
+      totalPages: result.meta.totalPages,
+    };
+  },
+
+  async getAllUnread(): Promise<AppNotification[]> {
+    const first = await notificationsService.getUnreadPage(1);
+    const all = [...first.notifications];
+    for (let page = 2; page <= first.totalPages; page++) {
+      const next = await notificationsService.getUnreadPage(page);
+      all.push(...next.notifications);
+    }
+    return all;
   },
 
   async markRead(id: string): Promise<void> {

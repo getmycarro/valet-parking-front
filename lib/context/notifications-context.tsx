@@ -84,9 +84,16 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryDelayRef = useRef(1_000);
   const mountedRef = useRef(false);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastUnreadCountRef = useRef<number | null>(null);
 
   const handleSSENotification = useCallback((notification: AppNotification) => {
-    setNotifications((prev) => [notification, ...prev]);
+    setNotifications((prev) => {
+      const next = [notification, ...prev];
+      // keep lastUnreadCountRef in sync so polling doesn't cause a redundant reload
+      lastUnreadCountRef.current = next.filter((n) => !n.read).length;
+      return next;
+    });
     setLastSSENotification(notification);
     firePaymentToast(notification);
   }, []);
@@ -134,23 +141,62 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     };
   }, [handleSSENotification]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const loadUnreadNotifications = useCallback(async () => {
+    try {
+      const count = await notificationsService.getUnreadCount();
+      if (!mountedRef.current) return;
+      lastUnreadCountRef.current = count;
+      if (count > 0) {
+        const unread = await notificationsService.getAllUnread();
+        if (!mountedRef.current) return;
+        setNotifications(unread);
+      } else {
+        setNotifications([]);
+      }
+    } catch {
+      // silently ignore initial load errors
+    }
+  }, []);
+
   useEffect(() => {
     mountedRef.current = true;
 
-    notificationsService.getAll().then(setNotifications).catch(() => {});
+    loadUnreadNotifications();
     connect();
+
+    pollIntervalRef.current = setInterval(async () => {
+      if (!mountedRef.current) return;
+      try {
+        const count = await notificationsService.getUnreadCount();
+        if (!mountedRef.current) return;
+        if (count !== lastUnreadCountRef.current) {
+          lastUnreadCountRef.current = count;
+          if (count > 0) {
+            const unread = await notificationsService.getAllUnread();
+            if (mountedRef.current) setNotifications(unread);
+          } else {
+            setNotifications([]);
+          }
+        }
+      } catch {
+        // silently ignore poll errors
+      }
+    }, 30_000);
 
     return () => {
       mountedRef.current = false;
       esRef.current?.close();
       if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
     };
-  }, [connect]);
+  }, [connect, loadUnreadNotifications]);
 
   const markAsRead = useCallback(async (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-    );
+    setNotifications((prev) => {
+      const next = prev.map((n) => (n.id === id ? { ...n, read: true } : n));
+      lastUnreadCountRef.current = next.filter((n) => !n.read).length;
+      return next;
+    });
     try {
       await notificationsService.markRead(id);
     } catch {
@@ -159,7 +205,10 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const markAllAsRead = useCallback(async () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    setNotifications((prev) => {
+      lastUnreadCountRef.current = 0;
+      return prev.map((n) => ({ ...n, read: true }));
+    });
     notificationsService.markAllRead().catch(() => {});
   }, []);
 
