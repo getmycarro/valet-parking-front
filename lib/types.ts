@@ -53,13 +53,25 @@ export type Employee = {
   photoUrl?: string;
 };
 
+export type NotificationType =
+  | 'CHECKOUT_REQUEST'
+  | 'OBJECT_SEARCH_REQUEST'
+  | 'APPROACH_COUNTER'
+  | 'OBJECT_SEARCH_IN_PROGRESS';
+
+export type NotificationCompany = { id: string; name: string };
+
+export type NotificationUser = { id: string; name: string; email: string };
+
 export type AppNotification = {
   id: string;
-  type: string;
+  type: NotificationType | string;
   title: string;
   message: string;
-  data: Record<string, unknown>;
-  companyId?: string;
-  createdAt: number;
-  read: boolean;
+  data: Record<string, unknown> | null;
+  isRead: boolean;
+  createdAt: string; // ISO string
+  company: NotificationCompany;
+  triggeredBy: NotificationUser | null;
+  recipient: NotificationUser | null;
 };

@@ -1,81 +1,86 @@
 import { apiClient } from "../api-client";
 import type { AppNotification } from "@/lib/types";
 
-export interface ApiNotification {
+const API_BASE_URL =
+  (typeof process !== "undefined" && process.env.NEXT_PUBLIC_API_URL) ||
+  "http://localhost:3001/api";
+
+// ─── Raw API shapes ────────────────────────────────────────────────────────────
+
+interface ApiNotificationCompany {
+  id: string;
+  name: string;
+}
+
+interface ApiNotificationUser {
+  id: string;
+  name: string;
+  email: string;
+}
+
+interface ApiNotification {
   id: string;
   type: string;
   title: string;
   message: string;
-  data: Record<string, unknown> | string;
+  data: Record<string, unknown> | null;
   isRead: boolean;
-  companyId: string;
-  triggeredById?: string;
   createdAt: string;
-  updatedAt?: string;
+  company: ApiNotificationCompany;
+  triggeredBy: ApiNotificationUser | null;
+  recipient: ApiNotificationUser | null;
 }
 
-interface PaginatedMeta {
-  page: number;
-  limit: number;
+interface UnreadNotificationsResponse {
+  data: ApiNotification[];
   total: number;
-  totalPages: number;
 }
 
-interface PaginatedResponse<T> {
-  data: T[];
-  meta: PaginatedMeta;
-}
+// ─── Mapper ───────────────────────────────────────────────────────────────────
 
-export function mapApiNotification(n: ApiNotification): AppNotification {
-  let data: Record<string, unknown> = {};
-  if (typeof n.data === "string") {
-    try {
-      data = JSON.parse(n.data);
-    } catch {}
-  } else if (n.data && typeof n.data === "object") {
-    data = n.data;
-  }
+function mapApiNotification(n: ApiNotification): AppNotification {
   return {
     id: n.id,
     type: n.type,
     title: n.title,
     message: n.message,
-    data,
-    companyId: n.companyId,
-    createdAt: new Date(n.createdAt).getTime(),
-    read: n.isRead,
+    data: n.data ?? {},
+    isRead: n.isRead,
+    createdAt: n.createdAt,
+    company: n.company,
+    triggeredBy: n.triggeredBy ?? null,
+    recipient: n.recipient ?? null,
   };
 }
 
+// ─── Service ─────────────────────────────────────────────────────────────────
+
 export const notificationsService = {
-  async getUnreadCount(): Promise<number> {
-    const result = await apiClient.get<{ unreadCount: number }>(
-      "/notifications/unread-count"
-    );
-    return result.unreadCount;
-  },
+  /**
+   * GET /notifications/unread — multi-company, for polling.
+   * Uses native fetch to avoid axios envelope-unwrapping stripping `total`.
+   */
+  async getUnread(
+    signal?: AbortSignal
+  ): Promise<{ data: AppNotification[]; total: number }> {
+    const token = apiClient.getToken();
+    const res = await fetch(`${API_BASE_URL}/notifications/unread`, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      signal,
+    });
 
-  async getUnreadPage(
-    page: number,
-    limit = 20
-  ): Promise<{ notifications: AppNotification[]; totalPages: number }> {
-    const result = await apiClient.get<PaginatedResponse<ApiNotification>>(
-      `/notifications?isRead=false&limit=${limit}&page=${page}`
-    );
-    return {
-      notifications: result.data.map(mapApiNotification),
-      totalPages: result.meta.totalPages,
-    };
-  },
-
-  async getAllUnread(): Promise<AppNotification[]> {
-    const first = await notificationsService.getUnreadPage(1);
-    const all = [...first.notifications];
-    for (let page = 2; page <= first.totalPages; page++) {
-      const next = await notificationsService.getUnreadPage(page);
-      all.push(...next.notifications);
+    if (!res.ok) {
+      const err = new Error(`Notifications fetch failed: ${res.status}`);
+      (err as Error & { status: number }).status = res.status;
+      throw err;
     }
-    return all;
+
+    const json: UnreadNotificationsResponse = await res.json();
+    const notifications = (json.data ?? []).map(mapApiNotification);
+    return { data: notifications, total: json.total ?? notifications.length };
   },
 
   async markRead(id: string): Promise<void> {
@@ -84,6 +89,22 @@ export const notificationsService = {
 
   async markAllRead(): Promise<void> {
     await apiClient.patch("/notifications/read-all", {});
+  },
+
+  async markAllReadAllCompanies(): Promise<{ updated: number }> {
+    const res = await apiClient.patch<{ updated: number }>(
+      "/notifications/read-all-companies",
+      {}
+    );
+    return res;
+  },
+
+  async acceptNotification(id: string): Promise<{ success: boolean }> {
+    const res = await apiClient.patch<{ success: boolean }>(
+      `/notifications/${id}/accept`,
+      {}
+    );
+    return res;
   },
 
   async startObjectSearch(data: {
