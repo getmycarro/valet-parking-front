@@ -9,7 +9,7 @@ import {
 } from "@/lib/services/vehicles-service";
 import { useDebounce } from "./use-debounce";
 
-const DEFAULT_META = { page: 1, limit: 20, total: 0, totalPages: 0, active: 0, pending_delivery: 0, completed: 0, all: 0 };
+const DEFAULT_META = { page: 1, limit: 20, total: 0, totalPages: 0, active: 0, pending_delivery: 0, completed: 0, under_review: 0, all: 0 };
 
 export function useVehicles(
   initialFilters: VehicleFilterParams = { page: 1, limit: 20, status: "active" },

@@ -1,6 +1,6 @@
 import { apiClient } from "../api-client";
 
-export type ParkingRecordStatus = "UNPAID" | "PAID" | "FREE";
+export type ParkingRecordStatus = "UNPAID" | "PAID" | "FREE" | "PAYMENT_UNDER_REVIEW";
 
 export interface ParkingRecord {
   id: string;
@@ -96,6 +96,7 @@ export interface VehiclesListResponse {
     active: number;              // Vehículos UNPAID
     pending_delivery: number;    // Vehículos PAID, pendientes de entrega
     completed: number;           // Vehículos FREE (entregados)
+    under_review: number;        // Vehículos PAYMENT_UNDER_REVIEW
     all: number;                 // Total sin filtro de status
   };
 }
@@ -107,7 +108,7 @@ export interface VehicleFilterParams {
   brand?: string;
   model?: string;
   color?: string;
-  status?: "active" | "completed" | "pending_delivery" | "all";
+  status?: "active" | "completed" | "pending_delivery" | "under_review" | "all";
   dateFrom?: string;
   dateTo?: string;
   search?: string;
@@ -237,6 +238,13 @@ export const vehiclesService = {
    */
   async getValets(): Promise<ValetInfo[]> {
     return apiClient.get<ValetInfo[]>("/vehicles/valets");
+  },
+
+  /**
+   * Actualizar estado de un parking record
+   */
+  async updateStatus(id: string, status: ParkingRecordStatus): Promise<ParkingRecord> {
+    return apiClient.patch<ParkingRecord>(`/vehicles/${id}/status`, { status });
   },
 
 };

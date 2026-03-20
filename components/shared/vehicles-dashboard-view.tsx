@@ -65,11 +65,12 @@ function formatDateTime(ts: string | number) {
   });
 }
 
-type TicketStatus = "red" | "yellow" | "green";
+type TicketStatus = "red" | "yellow" | "green" | "blue";
 
 function getTicketStatus(record: ParkingRecord): TicketStatus {
   if (record.status === "FREE") return "green";
   if (record.status === "PAID") return "yellow";
+  if (record.status === "PAYMENT_UNDER_REVIEW") return "blue";
   return "red";
 }
 
@@ -77,9 +78,10 @@ const ticketStatusConfig = {
   red: { color: "bg-red-500", label: "Sin pago" },
   yellow: { color: "bg-yellow-500", label: "Pagado - pendiente entrega" },
   green: { color: "bg-green-500", label: "Entregado" },
+  blue: { color: "bg-blue-500", label: "Pago en revisión" },
 } as const;
 
-type StatusFilter = "todos" | "activos" | "pendientes" | "pagados";
+type StatusFilter = "todos" | "activos" | "pendientes" | "pagados" | "revision";
 
 type Props = {
   query?: string;
@@ -163,6 +165,7 @@ export function VehiclesDashboardView({
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailRecord, setDetailRecord] = useState<ParkingRecord | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [underReviewLoading, setUnderReviewLoading] = useState(false);
 
 
   // Refresh when parent signals (e.g., after vehicle registration)
@@ -192,9 +195,10 @@ export function VehiclesDashboardView({
   // Contadores estáticos obtenidos directamente del API (meta)
   // No se calculan filtrando, sino que vienen precalculados del backend
   // Se actualizan automáticamente cuando cambian los filtros (companyId, status, fechas, etc.)
-  const activosCount = meta.active ?? 0;           // Total vehículos SIN PAGO
+  const activosCount = meta.active ?? 0;                      // Total vehículos SIN PAGO
   const pendientesEntregaCount = meta.pending_delivery ?? 0;  // Total pagados pero SIN ENTREGAR
-  const entregadosCount = meta.completed ?? 0;     // Total ENTREGADOS
+  const entregadosCount = meta.completed ?? 0;                // Total ENTREGADOS
+  const enRevisionCount = meta.under_review ?? 0;            // Total PAYMENT_UNDER_REVIEW
 
   const handleStatusFilter = (s: StatusFilter) => {
     setStatusFilter(s);
@@ -203,6 +207,7 @@ export function VehiclesDashboardView({
       activos: "active" as const,
       pendientes: "pending_delivery" as const,
       pagados: "completed" as const,
+      revision: "under_review" as const,
     };
     setFilters({ status: statusMap[s] });
   };
@@ -303,7 +308,7 @@ export function VehiclesDashboardView({
 
   return (
     <div className="space-y-6">
-      <div className={`grid gap-4 ${hideResultsCard ? "md:grid-cols-3" : "md:grid-cols-4"}`}>
+      <div className={`grid gap-4 ${hideResultsCard ? "md:grid-cols-4" : "md:grid-cols-5"}`}>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -314,6 +319,19 @@ export function VehiclesDashboardView({
           <CardContent>
             <div className="text-2xl font-bold text-foreground">
               {activosCount}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Pago en revisión
+            </CardTitle>
+            <span className="inline-block h-3 w-3 rounded-full bg-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-foreground">
+              {enRevisionCount}
             </div>
           </CardContent>
         </Card>
@@ -386,6 +404,12 @@ export function VehiclesDashboardView({
             onClick={() => handleStatusFilter("activos")}
           >
             Activos
+          </Button>
+          <Button
+            variant={statusFilter === "revision" ? "default" : "outline"}
+            onClick={() => handleStatusFilter("revision")}
+          >
+            En revisión
           </Button>
           <Button
             variant={statusFilter === "pendientes" ? "default" : "outline"}
@@ -901,14 +925,14 @@ export function VehiclesDashboardView({
 
       {/* Vehicle detail modal */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               Detalle del ticket{" "}
               {detailRecord ? `#${detailRecord.id.slice(-7)}` : ""}
             </DialogTitle>
             <DialogDescription>
-              Informacion completa del registro de estacionamiento
+              Información completa del registro de estacionamiento
             </DialogDescription>
           </DialogHeader>
           {detailLoading ? (
@@ -916,137 +940,171 @@ export function VehiclesDashboardView({
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
           ) : detailRecord ? (
-            <div className="space-y-4 text-sm">
+            <div className="space-y-5 text-sm">
+
+              {/* Status badge */}
+              {(() => {
+                const s = getTicketStatus(detailRecord);
+                const cfg = ticketStatusConfig[s];
+                const textColors: Record<TicketStatus, string> = {
+                  red: "bg-red-100 text-red-800 border-red-200",
+                  yellow: "bg-yellow-100 text-yellow-800 border-yellow-200",
+                  green: "bg-green-100 text-green-800 border-green-200",
+                  blue: "bg-blue-100 text-blue-800 border-blue-200",
+                };
+                return (
+                  <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border ${textColors[s]}`}>
+                    <span className={`inline-block h-2 w-2 rounded-full ${cfg.color}`} />
+                    {cfg.label}
+                  </div>
+                );
+              })()}
+
               {/* Vehicle info */}
-              <div className="p-3 bg-muted/50 rounded-lg border border-border space-y-1">
-                <p className="font-medium text-base">
-                  {detailRecord.plate}
-                </p>
-                <p className="text-muted-foreground">
-                  {[detailRecord.brand, detailRecord.model, detailRecord.color]
-                    .filter(Boolean)
-                    .join(" - ") || "Sin detalles del vehiculo"}
-                </p>
+              <div className="p-3 bg-muted/50 rounded-lg border border-border">
+                <p className="font-semibold text-base mb-1">{detailRecord.plate}</p>
+                <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+                  <span><span className="font-medium text-foreground">Marca:</span> {detailRecord.brand || "-"}</span>
+                  <span><span className="font-medium text-foreground">Modelo:</span> {detailRecord.model || "-"}</span>
+                  <span><span className="font-medium text-foreground">Color:</span> {detailRecord.color || "-"}</span>
+                </div>
+                {detailRecord.notes && (
+                  <p className="mt-2 text-xs text-muted-foreground italic">Notas: {detailRecord.notes}</p>
+                )}
               </div>
 
               {/* Times */}
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-muted-foreground text-xs">Check-in</p>
-                  <p className="font-medium">
-                    {formatDateTime(detailRecord.checkInAt)}
-                  </p>
+                <div className="p-3 bg-muted/30 rounded-lg border border-border">
+                  <p className="text-xs text-muted-foreground mb-1">Check-in</p>
+                  <p className="font-medium">{formatDateTime(detailRecord.checkInAt)}</p>
                 </div>
-                <div>
-                  <p className="text-muted-foreground text-xs">Check-out</p>
+                <div className="p-3 bg-muted/30 rounded-lg border border-border">
+                  <p className="text-xs text-muted-foreground mb-1">Check-out</p>
                   <p className="font-medium">
-                    {detailRecord.checkOutAt
-                      ? formatDateTime(detailRecord.checkOutAt)
-                      : "Pendiente"}
+                    {detailRecord.checkOutAt ? formatDateTime(detailRecord.checkOutAt) : "Pendiente"}
                   </p>
                 </div>
               </div>
 
               {/* People */}
-              <div className="space-y-2">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-muted-foreground text-xs">
-                      Registrado por
-                    </p>
-                    <p className="font-medium">
-                      {detailRecord.registerRecord
-                        ? `${detailRecord.registerRecord.name}`
-                        : "-"}
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Personal</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="p-2 bg-muted/20 rounded border border-border">
+                    <p className="text-xs text-muted-foreground">Registrado por</p>
+                    <p className="font-medium mt-0.5">
+                      {detailRecord.registerRecord ? detailRecord.registerRecord.name : "-"}
                     </p>
                     {detailRecord.registerRecord?.idNumber && (
-                      <p className="text-xs text-muted-foreground">
-                        {detailRecord.registerRecord.idNumber}
-                      </p>
+                      <p className="text-xs text-muted-foreground">{detailRecord.registerRecord.idNumber}</p>
                     )}
                   </div>
-                  <div>
-                    <p className="text-muted-foreground text-xs">
-                      Valet entrada
-                    </p>
-                    <p className="font-medium">
-                      {detailRecord.checkInValet
-                        ? `${detailRecord.checkInValet.name}`
-                        : "-"}
+                  <div className="p-2 bg-muted/20 rounded border border-border">
+                    <p className="text-xs text-muted-foreground">Valet entrada</p>
+                    <p className="font-medium mt-0.5">
+                      {detailRecord.checkInValet ? detailRecord.checkInValet.name : "-"}
                     </p>
                     {detailRecord.checkInValet?.idNumber && (
-                      <p className="text-xs text-muted-foreground">
-                        {detailRecord.checkInValet.idNumber}
-                      </p>
+                      <p className="text-xs text-muted-foreground">{detailRecord.checkInValet.idNumber}</p>
                     )}
                   </div>
-                </div>
-                <div>
-                  <p className="text-muted-foreground text-xs">Valet salida</p>
-                  <p className="font-medium">
-                    {detailRecord.checkOutValet
-                      ? `${detailRecord.checkOutValet.name}`
-                      : "-"}
-                  </p>
-                  {detailRecord.checkOutValet?.idNumber && (
-                    <p className="text-xs text-muted-foreground">
-                      {detailRecord.checkOutValet.idNumber}
+                  <div className="p-2 bg-muted/20 rounded border border-border">
+                    <p className="text-xs text-muted-foreground">Valet salida</p>
+                    <p className="font-medium mt-0.5">
+                      {detailRecord.checkOutValet ? detailRecord.checkOutValet.name : "-"}
                     </p>
-                  )}
+                    {detailRecord.checkOutValet?.idNumber && (
+                      <p className="text-xs text-muted-foreground">{detailRecord.checkOutValet.idNumber}</p>
+                    )}
+                  </div>
                 </div>
               </div>
 
               {/* Payments */}
-              {detailRecord.payments && detailRecord.payments.length > 0 && (
-                <div>
-                  <p className="text-muted-foreground text-xs mb-1">Pagos</p>
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                  Pagos {detailRecord.payments?.length ? `(${detailRecord.payments.length})` : ""}
+                </p>
+                {detailRecord.payments && detailRecord.payments.length > 0 ? (
                   <div className="space-y-2">
-                    {detailRecord.payments.map((p: any) => (
-                      <div
-                        key={p.id}
-                        className="p-2 bg-muted/30 rounded border border-border space-y-1"
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium">${p.amountUSD?.toFixed(2)}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {p.status}
-                          </span>
+                    {detailRecord.payments.map((p: any) => {
+                      const payStatusLabels: Record<string, string> = {
+                        PENDING: "Pendiente",
+                        RECEIVED: "Recibido",
+                        CANCELLED: "Cancelado",
+                        pending: "Pendiente",
+                        received: "Recibido",
+                        cancelled: "Cancelado",
+                      };
+                      const payStatusColors: Record<string, string> = {
+                        PENDING: "text-yellow-600 bg-yellow-50 border-yellow-200",
+                        RECEIVED: "text-green-700 bg-green-50 border-green-200",
+                        CANCELLED: "text-red-600 bg-red-50 border-red-200",
+                        pending: "text-yellow-600 bg-yellow-50 border-yellow-200",
+                        received: "text-green-700 bg-green-50 border-green-200",
+                        cancelled: "text-red-600 bg-red-50 border-red-200",
+                      };
+                      return (
+                        <div key={p.id} className="p-3 bg-muted/30 rounded-lg border border-border space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-base">${p.amountUSD?.toFixed(2)}</span>
+                              {p.tip > 0 && (
+                                <span className="text-xs text-muted-foreground">+ ${p.tip?.toFixed(2)} propina</span>
+                              )}
+                            </div>
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${payStatusColors[p.status] || "text-muted-foreground"}`}>
+                              {payStatusLabels[p.status] || p.status}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                            {p.paymentMethod && (
+                              <div>
+                                <span className="text-muted-foreground">Método: </span>
+                                <span className="font-medium">{p.paymentMethod.name}</span>
+                                {p.paymentMethod.form && (
+                                  <span className="text-muted-foreground"> ({p.paymentMethod.form})</span>
+                                )}
+                              </div>
+                            )}
+                            {p.validation && (
+                              <div>
+                                <span className="text-muted-foreground">Validación: </span>
+                                <span className="font-medium">{p.validation === "MANUAL" || p.validation === "manual" ? "Manual" : "Automática"}</span>
+                              </div>
+                            )}
+                            {p.reference && (
+                              <div>
+                                <span className="text-muted-foreground">Referencia: </span>
+                                <span className="font-medium">{p.reference}</span>
+                              </div>
+                            )}
+                            {p.date && (
+                              <div>
+                                <span className="text-muted-foreground">Fecha: </span>
+                                <span className="font-medium">{formatDateTime(p.date)}</span>
+                              </div>
+                            )}
+                            {p.processedBy && (
+                              <div className="col-span-2">
+                                <span className="text-muted-foreground">Procesado por: </span>
+                                <span className="font-medium">{p.processedBy.name}</span>
+                              </div>
+                            )}
+                            {p.note && (
+                              <div className="col-span-2 italic text-muted-foreground">
+                                Nota: {p.note}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        {p.reference && (
-                          <p className="text-xs text-muted-foreground">
-                            Referencia: {p.reference}
-                          </p>
-                        )}
-                        {p.note && (
-                          <p className="text-xs text-muted-foreground">
-                            Nota: {p.note}
-                          </p>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
-                </div>
-              )}
-
-              {/* Status */}
-              <div className="flex items-center gap-2 pt-2">
-                {(() => {
-                  const s = getTicketStatus(detailRecord);
-                  const cfg = ticketStatusConfig[s];
-                  const textColors = {
-                    red: "bg-red-100 text-red-800",
-                    yellow: "bg-yellow-100 text-yellow-800",
-                    green: "bg-green-100 text-green-800",
-                  };
-                  return (
-                    <span
-                      className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${textColors[s]}`}
-                    >
-                      <span className={`inline-block h-2 w-2 rounded-full ${cfg.color}`} />
-                      {cfg.label}
-                    </span>
-                  );
-                })()}
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">Sin pagos registrados</p>
+                )}
               </div>
 
             </div>
@@ -1054,6 +1112,43 @@ export function VehiclesDashboardView({
             <p className="text-center text-muted-foreground py-4">
               No se pudo cargar el detalle
             </p>
+          )}
+          {detailRecord && detailRecord.status !== "FREE" && detailRecord.status !== "PAYMENT_UNDER_REVIEW" && (
+            <DialogFooter className="mt-4">
+              <Button
+                variant="outline"
+                onClick={() => setDetailOpen(false)}
+              >
+                Cerrar
+              </Button>
+              <Button
+                disabled={underReviewLoading}
+                onClick={async () => {
+                  if (!detailRecord) return;
+                  setUnderReviewLoading(true);
+                  try {
+                    const updated = await vehiclesService.updateStatus(detailRecord.id, "PAYMENT_UNDER_REVIEW");
+                    setDetailRecord(updated);
+                    refresh();
+                    toast.success("Estado actualizado a Pago en revisión");
+                  } catch {
+                    toast.error("Error al actualizar el estado");
+                  } finally {
+                    setUnderReviewLoading(false);
+                  }
+                }}
+              >
+                {underReviewLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Marcar como Pago en revisión
+              </Button>
+            </DialogFooter>
+          )}
+          {detailRecord && (detailRecord.status === "FREE" || detailRecord.status === "PAYMENT_UNDER_REVIEW") && (
+            <DialogFooter className="mt-4">
+              <Button variant="outline" onClick={() => setDetailOpen(false)}>
+                Cerrar
+              </Button>
+            </DialogFooter>
           )}
         </DialogContent>
       </Dialog>
