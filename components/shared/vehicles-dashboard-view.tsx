@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -101,6 +102,7 @@ export function VehiclesDashboardView({
   hideResultsCard = false,
 }: Props) {
   const { state, deliverCar, addPayment } = useStore();
+  const router = useRouter();
 
   const {
     data: vehicles,
@@ -161,11 +163,6 @@ export function VehiclesDashboardView({
   const [approachNotes, setApproachNotes] = useState("");
   const [approachLoading, setApproachLoading] = useState(false);
 
-  // Detail modal state
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [detailRecord, setDetailRecord] = useState<ParkingRecord | null>(null);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [underReviewLoading, setUnderReviewLoading] = useState(false);
 
 
   // Refresh when parent signals (e.g., after vehicle registration)
@@ -207,7 +204,8 @@ export function VehiclesDashboardView({
       activos: "active" as const,
       pendientes: "pending_delivery" as const,
       pagados: "completed" as const,
-      revision: "under_review" as const,
+      // "revision" fetches all and filters client-side (backend doesn't support under_review yet)
+      revision: "all" as const,
     };
     setFilters({ status: statusMap[s] });
   };
@@ -275,18 +273,6 @@ export function VehiclesDashboardView({
     return pagos[0]?.amountUSD ?? null;
   };
 
-  const handleOpenDetail = useCallback(async (id: string) => {
-    setDetailLoading(true);
-    setDetailOpen(true);
-    try {
-      const record = await vehiclesService.getById(id);
-      setDetailRecord(record);
-    } catch {
-      setDetailRecord(null);
-    } finally {
-      setDetailLoading(false);
-    }
-  }, []);
 
   const handleCheckout = async () => {
     if (!checkoutCarId || !checkoutValetId) return;
@@ -490,7 +476,10 @@ export function VehiclesDashboardView({
               </tr>
             </thead>
             <tbody className="[&_tr:last-child]:border-0">
-              {vehicles.map((a) => {
+              {(statusFilter === "revision"
+                ? vehicles.filter((v) => v.status === "PAYMENT_UNDER_REVIEW")
+                : vehicles
+              ).map((a) => {
                 const amount = getAmount(a);
                 const status = getTicketStatus(a);
                 const statusCfg = ticketStatusConfig[status];
@@ -543,7 +532,7 @@ export function VehiclesDashboardView({
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Acciones</DropdownMenuLabel>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => handleOpenDetail(a.id)}>
+                          <DropdownMenuItem onClick={() => router.push(`/parking/${a.id}`)}>
                             <Eye className="mr-2 h-4 w-4" />
                             Ver detalle
                           </DropdownMenuItem>
@@ -591,7 +580,10 @@ export function VehiclesDashboardView({
                   </tr>
                 );
               })}
-              {vehicles.length === 0 && !isLoading && (
+              {(statusFilter === "revision"
+                ? vehicles.filter((v) => v.status === "PAYMENT_UNDER_REVIEW").length === 0
+                : vehicles.length === 0
+              ) && !isLoading && (
                 <tr>
                   <td
                     colSpan={12}
@@ -923,235 +915,6 @@ export function VehiclesDashboardView({
         </DialogContent>
       </Dialog>
 
-      {/* Vehicle detail modal */}
-      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              Detalle del ticket{" "}
-              {detailRecord ? `#${detailRecord.id.slice(-7)}` : ""}
-            </DialogTitle>
-            <DialogDescription>
-              Información completa del registro de estacionamiento
-            </DialogDescription>
-          </DialogHeader>
-          {detailLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            </div>
-          ) : detailRecord ? (
-            <div className="space-y-5 text-sm">
-
-              {/* Status badge */}
-              {(() => {
-                const s = getTicketStatus(detailRecord);
-                const cfg = ticketStatusConfig[s];
-                const textColors: Record<TicketStatus, string> = {
-                  red: "bg-red-100 text-red-800 border-red-200",
-                  yellow: "bg-yellow-100 text-yellow-800 border-yellow-200",
-                  green: "bg-green-100 text-green-800 border-green-200",
-                  blue: "bg-blue-100 text-blue-800 border-blue-200",
-                };
-                return (
-                  <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border ${textColors[s]}`}>
-                    <span className={`inline-block h-2 w-2 rounded-full ${cfg.color}`} />
-                    {cfg.label}
-                  </div>
-                );
-              })()}
-
-              {/* Vehicle info */}
-              <div className="p-3 bg-muted/50 rounded-lg border border-border">
-                <p className="font-semibold text-base mb-1">{detailRecord.plate}</p>
-                <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
-                  <span><span className="font-medium text-foreground">Marca:</span> {detailRecord.brand || "-"}</span>
-                  <span><span className="font-medium text-foreground">Modelo:</span> {detailRecord.model || "-"}</span>
-                  <span><span className="font-medium text-foreground">Color:</span> {detailRecord.color || "-"}</span>
-                </div>
-                {detailRecord.notes && (
-                  <p className="mt-2 text-xs text-muted-foreground italic">Notas: {detailRecord.notes}</p>
-                )}
-              </div>
-
-              {/* Times */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 bg-muted/30 rounded-lg border border-border">
-                  <p className="text-xs text-muted-foreground mb-1">Check-in</p>
-                  <p className="font-medium">{formatDateTime(detailRecord.checkInAt)}</p>
-                </div>
-                <div className="p-3 bg-muted/30 rounded-lg border border-border">
-                  <p className="text-xs text-muted-foreground mb-1">Check-out</p>
-                  <p className="font-medium">
-                    {detailRecord.checkOutAt ? formatDateTime(detailRecord.checkOutAt) : "Pendiente"}
-                  </p>
-                </div>
-              </div>
-
-              {/* People */}
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Personal</p>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="p-2 bg-muted/20 rounded border border-border">
-                    <p className="text-xs text-muted-foreground">Registrado por</p>
-                    <p className="font-medium mt-0.5">
-                      {detailRecord.registerRecord ? detailRecord.registerRecord.name : "-"}
-                    </p>
-                    {detailRecord.registerRecord?.idNumber && (
-                      <p className="text-xs text-muted-foreground">{detailRecord.registerRecord.idNumber}</p>
-                    )}
-                  </div>
-                  <div className="p-2 bg-muted/20 rounded border border-border">
-                    <p className="text-xs text-muted-foreground">Valet entrada</p>
-                    <p className="font-medium mt-0.5">
-                      {detailRecord.checkInValet ? detailRecord.checkInValet.name : "-"}
-                    </p>
-                    {detailRecord.checkInValet?.idNumber && (
-                      <p className="text-xs text-muted-foreground">{detailRecord.checkInValet.idNumber}</p>
-                    )}
-                  </div>
-                  <div className="p-2 bg-muted/20 rounded border border-border">
-                    <p className="text-xs text-muted-foreground">Valet salida</p>
-                    <p className="font-medium mt-0.5">
-                      {detailRecord.checkOutValet ? detailRecord.checkOutValet.name : "-"}
-                    </p>
-                    {detailRecord.checkOutValet?.idNumber && (
-                      <p className="text-xs text-muted-foreground">{detailRecord.checkOutValet.idNumber}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Payments */}
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-                  Pagos {detailRecord.payments?.length ? `(${detailRecord.payments.length})` : ""}
-                </p>
-                {detailRecord.payments && detailRecord.payments.length > 0 ? (
-                  <div className="space-y-2">
-                    {detailRecord.payments.map((p: any) => {
-                      const payStatusLabels: Record<string, string> = {
-                        PENDING: "Pendiente",
-                        RECEIVED: "Recibido",
-                        CANCELLED: "Cancelado",
-                        pending: "Pendiente",
-                        received: "Recibido",
-                        cancelled: "Cancelado",
-                      };
-                      const payStatusColors: Record<string, string> = {
-                        PENDING: "text-yellow-600 bg-yellow-50 border-yellow-200",
-                        RECEIVED: "text-green-700 bg-green-50 border-green-200",
-                        CANCELLED: "text-red-600 bg-red-50 border-red-200",
-                        pending: "text-yellow-600 bg-yellow-50 border-yellow-200",
-                        received: "text-green-700 bg-green-50 border-green-200",
-                        cancelled: "text-red-600 bg-red-50 border-red-200",
-                      };
-                      return (
-                        <div key={p.id} className="p-3 bg-muted/30 rounded-lg border border-border space-y-2">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold text-base">${p.amountUSD?.toFixed(2)}</span>
-                              {p.tip > 0 && (
-                                <span className="text-xs text-muted-foreground">+ ${p.tip?.toFixed(2)} propina</span>
-                              )}
-                            </div>
-                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${payStatusColors[p.status] || "text-muted-foreground"}`}>
-                              {payStatusLabels[p.status] || p.status}
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                            {p.paymentMethod && (
-                              <div>
-                                <span className="text-muted-foreground">Método: </span>
-                                <span className="font-medium">{p.paymentMethod.name}</span>
-                                {p.paymentMethod.form && (
-                                  <span className="text-muted-foreground"> ({p.paymentMethod.form})</span>
-                                )}
-                              </div>
-                            )}
-                            {p.validation && (
-                              <div>
-                                <span className="text-muted-foreground">Validación: </span>
-                                <span className="font-medium">{p.validation === "MANUAL" || p.validation === "manual" ? "Manual" : "Automática"}</span>
-                              </div>
-                            )}
-                            {p.reference && (
-                              <div>
-                                <span className="text-muted-foreground">Referencia: </span>
-                                <span className="font-medium">{p.reference}</span>
-                              </div>
-                            )}
-                            {p.date && (
-                              <div>
-                                <span className="text-muted-foreground">Fecha: </span>
-                                <span className="font-medium">{formatDateTime(p.date)}</span>
-                              </div>
-                            )}
-                            {p.processedBy && (
-                              <div className="col-span-2">
-                                <span className="text-muted-foreground">Procesado por: </span>
-                                <span className="font-medium">{p.processedBy.name}</span>
-                              </div>
-                            )}
-                            {p.note && (
-                              <div className="col-span-2 italic text-muted-foreground">
-                                Nota: {p.note}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground italic">Sin pagos registrados</p>
-                )}
-              </div>
-
-            </div>
-          ) : (
-            <p className="text-center text-muted-foreground py-4">
-              No se pudo cargar el detalle
-            </p>
-          )}
-          {detailRecord && detailRecord.status !== "FREE" && detailRecord.status !== "PAYMENT_UNDER_REVIEW" && (
-            <DialogFooter className="mt-4">
-              <Button
-                variant="outline"
-                onClick={() => setDetailOpen(false)}
-              >
-                Cerrar
-              </Button>
-              <Button
-                disabled={underReviewLoading}
-                onClick={async () => {
-                  if (!detailRecord) return;
-                  setUnderReviewLoading(true);
-                  try {
-                    const updated = await vehiclesService.updateStatus(detailRecord.id, "PAYMENT_UNDER_REVIEW");
-                    setDetailRecord(updated);
-                    refresh();
-                    toast.success("Estado actualizado a Pago en revisión");
-                  } catch {
-                    toast.error("Error al actualizar el estado");
-                  } finally {
-                    setUnderReviewLoading(false);
-                  }
-                }}
-              >
-                {underReviewLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Marcar como Pago en revisión
-              </Button>
-            </DialogFooter>
-          )}
-          {detailRecord && (detailRecord.status === "FREE" || detailRecord.status === "PAYMENT_UNDER_REVIEW") && (
-            <DialogFooter className="mt-4">
-              <Button variant="outline" onClick={() => setDetailOpen(false)}>
-                Cerrar
-              </Button>
-            </DialogFooter>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
