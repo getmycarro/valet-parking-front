@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: 'valet-web',
-      script: 'node_modules/.bin/next',
+      script: 'pnpm',
       args: 'start',
       instances: 1,
       autorestart: true,
