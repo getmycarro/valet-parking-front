@@ -1,14 +1,9 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Eye, EyeOff, Loader2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
 import { useAuth } from "@/lib/auth"
 import { ROLE_DEFAULT_REDIRECT } from "@/lib/constants"
 
@@ -44,76 +39,143 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
-      <div className="space-y-2">
-        <Label htmlFor="email" className="text-foreground">
+    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+        <label htmlFor="email" style={{ color: "var(--text-1)", fontSize: "0.875rem", fontWeight: 500 }}>
           Correo Electrónico
-        </Label>
-        <Input
+        </label>
+        <input
           id="email"
           type="email"
           placeholder="email@example.com"
           value={formData.email}
           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
           required
-          className="h-11 bg-card border-input focus:border-primary"
+          style={{
+            width: "100%",
+            padding: "0.75rem 1rem",
+            borderRadius: "0.75rem",
+            border: "1px solid var(--border-2)",
+            background: "var(--bg-glass)",
+            color: "var(--text-1)",
+            fontSize: "0.875rem",
+            outline: "none",
+            transition: "border-color 0.2s",
+          }}
+          onFocus={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
+          onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border-2)")}
         />
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="password" className="text-foreground">
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+        <label htmlFor="password" style={{ color: "var(--text-1)", fontSize: "0.875rem", fontWeight: 500 }}>
           Contraseña
-        </Label>
-        <div className="relative">
-          <Input
+        </label>
+        <div style={{ position: "relative" }}>
+          <input
             id="password"
             type={showPassword ? "text" : "password"}
             placeholder="••••••••"
             value={formData.password}
             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
             required
-            className="h-11 pr-10 bg-card border-input focus:border-primary"
+            style={{
+              width: "100%",
+              padding: "0.75rem 2.5rem 0.75rem 1rem",
+              borderRadius: "0.75rem",
+              border: "1px solid var(--border-2)",
+              background: "var(--bg-glass)",
+              color: "var(--text-1)",
+              fontSize: "0.875rem",
+              outline: "none",
+              transition: "border-color 0.2s",
+              boxSizing: "border-box",
+            }}
+            onFocus={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
+            onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border-2)")}
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            style={{
+              position: "absolute",
+              right: "0.75rem",
+              top: "50%",
+              transform: "translateY(-50%)",
+              background: "none",
+              border: "none",
+              color: "var(--text-2)",
+              cursor: "pointer",
+              padding: 0,
+              display: "flex",
+              alignItems: "center",
+            }}
           >
-            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            {showPassword ? <EyeOff style={{ width: 20, height: 20 }} /> : <Eye style={{ width: 20, height: 20 }} />}
           </button>
         </div>
       </div>
 
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="remember"
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: "0.5rem", cursor: "pointer" }}>
+          <input
+            type="checkbox"
             checked={formData.remember}
-            onCheckedChange={(checked) => setFormData({ ...formData, remember: checked as boolean })}
+            onChange={(e) => setFormData({ ...formData, remember: e.target.checked })}
+            style={{ accentColor: "var(--accent)" }}
           />
-          <Label htmlFor="remember" className="text-sm text-muted-foreground cursor-pointer">
-            Recordarme
-          </Label>
-        </div>
-        <button type="button" className="text-sm text-primary hover:underline">
+          <span style={{ color: "var(--text-2)", fontSize: "0.875rem" }}>Recordarme</span>
+        </label>
+        <button
+          type="button"
+          style={{
+            background: "none",
+            border: "none",
+            color: "var(--accent)",
+            fontSize: "0.875rem",
+            cursor: "pointer",
+            padding: 0,
+          }}
+        >
           ¿Olvidaste tu contraseña?
         </button>
       </div>
 
       {error && (
-        <p className="text-sm text-red-500 text-center">{error}</p>
+        <p style={{ color: "#ef4444", fontSize: "0.875rem", textAlign: "center", margin: 0 }}>
+          {error}
+        </p>
       )}
 
-      <Button type="submit" disabled={isLoading} className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground">
+      <button
+        type="submit"
+        disabled={isLoading}
+        className="btn btn-primary"
+        style={{
+          width: "100%",
+          padding: "0.75rem 1.5rem",
+          borderRadius: "0.75rem",
+          border: "none",
+          cursor: isLoading ? "not-allowed" : "pointer",
+          opacity: isLoading ? 0.7 : 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "0.5rem",
+          fontSize: "0.875rem",
+          fontWeight: 600,
+          marginTop: "0.5rem",
+        }}
+      >
         {isLoading ? (
           <>
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            <Loader2 style={{ width: 16, height: 16, animation: "spin 1s linear infinite" }} />
             Iniciando sesión...
           </>
         ) : (
           "Iniciar Sesión"
         )}
-      </Button>
+      </button>
     </form>
   )
 }

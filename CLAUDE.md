@@ -34,7 +34,13 @@ app/
 components/
 ├── ui/                          # shadcn/ui generados + custom (ver lista abajo)
 ├── admin/
-│   ├── admin-sidebar.tsx        # Sidebar de navegación (solo admin/manager)
+│   ├── admin-sidebar.tsx        # Rediseñado: fixed w-64, nav agrupada, footer con perfil usuario
+│   ├── companies/
+│   │   ├── kpi-cards.tsx              # 4 KPI cards derivadas de companies[]
+│   │   ├── companies-table-section.tsx # Tabla con filtros, search debounced, paginación
+│   │   ├── companies-charts.tsx        # Bar chart (Recharts) + SVG donut
+│   │   ├── upcoming-renewals.tsx       # Renovaciones próximas derivadas de invoices
+│   │   └── new-company-modal.tsx       # Modal de alta (shadcn Dialog)
 │   ├── occupancy-chart.tsx      # Gráfica de ocupación
 │   ├── recent-transactions.tsx  # Tabla de últimas transacciones
 │   └── companies-selector-modal.tsx
@@ -76,7 +82,8 @@ lib/
 │   ├── use-notifications.ts     # Polling de notificaciones
 │   ├── use-client-notifications.ts
 │   ├── use-debounce.ts
-│   └── use-crud-modal.ts
+│   ├── use-crud-modal.ts
+│   └── use-dashboard-sections.ts  # Visibilidad de secciones por rol
 ├── context/
 │   └── notifications-context.tsx
 └── services/                    # Capa de acceso a API (todos los endpoints)
@@ -341,6 +348,105 @@ El store ya NO usa localStorage para datos de negocio. Solo el token JWT se guar
 
 ---
 
+## Admin Shell — Dark Glassmorphism
+
+`AdminLayout` y `AdminSidebar` usan tema oscuro global `bg-slate-950` en todas las páginas admin.
+
+### CSS utilities disponibles (`app/globals.css`)
+
+| Clase | Propósito |
+|-------|-----------|
+| `admin-glass` | Dark glass card: `bg-slate-800/70 backdrop-blur border-slate-700/50` |
+| `hover-lift` | Elevación al hover: `translateY(-4px) + box-shadow` |
+| `scrollbar-hide` | Oculta scrollbar en todos los navegadores |
+| `gradient-text-blue` | Texto con gradiente azul→indigo |
+
+Animaciones vía inline style (no clase Tailwind) para soportar delays escalonados:
+```tsx
+style={{ animation: "fadeInUp 0.6s ease-out 0.1s both" }}
+```
+
+### Scope `.admin-area`
+
+El div raíz de `AdminLayout` lleva la clase `admin-area`. En `globals.css` hay un reset:
+```css
+.admin-area p, .admin-area span { color: inherit; font-size: inherit; }
+```
+Esto anula los overrides globales de `p` y `span` que vienen de la landing page.
+
+### AdminSidebar — props actuales
+
+```ts
+interface AdminSidebarProps {
+  isOpen: boolean;
+  onToggle: () => void;
+  userRole: string;
+  onLogout: () => void;  // añadido en el rediseño
+}
+```
+
+Sidebar siempre `w-64` (no colapsa a íconos). Mobile: `-translate-x-full`/`translate-x-0` + overlay.
+Menú organizado en grupos (`Gestión` / `Análisis`). Cada item tiene `roles: string[]`.
+
+### AdminLayout — topbar integrado
+
+El topbar vive dentro de `AdminLayout` (ya no existe `AdminPageHeader` separado). Props:
+```ts
+interface AdminLayoutProps {
+  children: ReactNode;
+  title: string;
+  subtitle?: string;   // disponible pero no renderizado actualmente
+  actions?: ReactNode; // disponible pero no renderizado actualmente
+}
+```
+
+---
+
+## Secciones modulares por rol
+
+`lib/hooks/use-dashboard-sections.ts` expone `isVisible(key)` para mostrar/ocultar secciones:
+
+```ts
+const { isVisible } = useDashboardSections(user.role);
+{isVisible('kpi-cards') && <CompaniesKpiCards ... />}
+```
+
+Para dar acceso a un rol adicional, editar solo `SECTION_PERMISSIONS` en el hook — los componentes no cambian. Secciones actuales: `'kpi-cards'`, `'companies-table'`, `'charts'`, `'renewals'`.
+
+---
+
+## CRÍTICO — No usar h1–h6 en componentes admin
+
+**Tailwind v4 pone sus utilidades en `@layer utilities`.** Las reglas globales de `globals.css` como `h1 { font-size: clamp(44px, 7vw, 92px); }` son *no-layered* y ganan sobre cualquier clase Tailwind (`text-3xl`, etc.) sin importar especificidad.
+
+**Regla:** en cualquier componente dentro del área admin, usar `<p>`, `<span>` o `<div>` con clases `text-*` explícitas. **Nunca `<h1>`–`<h6>`.**
+
+---
+
+## Hydration — patrones comunes en admin
+
+### Theme toggle (useTheme)
+`theme` de `useTheme()` es `undefined` en SSR:
+```tsx
+const [mounted, setMounted] = useState(false);
+useEffect(() => setMounted(true), []);
+// render:
+{mounted && theme === "dark" ? <Sun /> : <Moon />}
+```
+
+### Date.now() en useMemo
+Produce timestamps distintos en server vs client:
+```tsx
+const [now, setNow] = useState<number | null>(null);
+useEffect(() => setNow(Date.now()), []);
+const derived = useMemo(() => {
+  if (now === null) return [];
+  // lógica con now
+}, [data, now]);
+```
+
+---
+
 ## Errores comunes y cómo evitarlos
 
 **"useStore must be used within StoreProvider"**
@@ -360,3 +466,9 @@ La API usa UPPERCASE para enums (`"PENDING"`, `"ZELLE"`, etc.). Los servicios ha
 
 **Componente shadcn no existe**
 Verificar en `components/ui/` antes de instalarlo de nuevo. Los ya instalados incluyen: accordion, alert-dialog, alert, avatar, badge, breadcrumb, button, calendar, card, carousel, chart, checkbox, command, dialog, drawer, dropdown-menu, form, input, label, pagination, popover, progress, radio-group, scroll-area, select, separator, sheet, sidebar, skeleton, slider, switch, table, tabs, textarea, toast, toggle, tooltip y varios custom (confirm-dialog, data-table, empty-state, field, loading-spinner, modal, page-header, search-input, stat-card, status-badge).
+
+**Títulos enormes en área admin**
+Causado por `<h1>`–`<h6>` en componentes admin. Tailwind v4 pone utilidades en `@layer utilities`; los estilos unlayered de globals.css (`h1 { font-size: clamp(...) }`) ganan siempre. Usar `<p>` o `<span>` con clase `text-*` explícita.
+
+**Hydration mismatch en theme icon**
+`useTheme()` devuelve `undefined` en SSR. Agregar `mounted` state + `useEffect` antes de renderizar el ícono condicional (ver sección Hydration arriba).

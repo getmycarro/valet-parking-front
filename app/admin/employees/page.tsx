@@ -36,9 +36,9 @@ const columns: Column<Employee>[] = [
     header: "Tipo",
     render: (e) => {
       const typeConfig = {
-        VALET: { bg: "bg-blue-100", text: "text-blue-800", label: "Valet" },
-        ATTENDANT: { bg: "bg-purple-100", text: "text-purple-800", label: "Asistente" },
-        MANAGER: { bg: "bg-green-100", text: "text-green-800", label: "Gerente" },
+        VALET: { bg: "bg-blue-100 dark:bg-blue-950", text: "text-blue-800 dark:text-blue-200", label: "Valet" },
+        ATTENDANT: { bg: "bg-purple-100 dark:bg-purple-950", text: "text-purple-800 dark:text-purple-200", label: "Asistente" },
+        MANAGER: { bg: "bg-green-100 dark:bg-green-950", text: "text-green-800 dark:text-green-200", label: "Gerente" },
       };
       const config = typeConfig[e.type as keyof typeof typeConfig] || typeConfig.VALET;
       return (
@@ -122,23 +122,25 @@ export default function AdminEmployeesPage() {
         </Button>
       }
     >
-      <div className="mb-4 flex items-center gap-2 rounded-lg border border-input bg-background px-3 py-2">
-        <Search className="h-4 w-4 text-muted-foreground" />
-        <input
-          type="text"
-          placeholder="Buscar por nombre o número de documento..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
+      <div className="space-y-6">
+        <div className="flex items-center gap-2 rounded-lg border border-input bg-background px-3 py-2">
+          <Search className="h-4 w-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Buscar por nombre o número de documento..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
+          />
+        </div>
+        <DataTable
+          columns={[...columns, actionColumn]}
+          data={filteredEmployees}
+          emptyMessage="No hay empleados registrados"
+          title="Lista de Empleados"
+          keyExtractor={(e) => e.id}
         />
       </div>
-      <DataTable
-        columns={[...columns, actionColumn]}
-        data={filteredEmployees}
-        emptyMessage="No hay empleados registrados"
-        title="Lista de Empleados"
-        keyExtractor={(e) => e.id}
-      />
 
       <Modal
         isOpen={modal.isOpen}

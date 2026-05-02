@@ -1,915 +1,1082 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useRef } from "react"
-import Link from "next/link"
-import {
-  Car,
-  Smartphone,
-  Monitor,
-  Building2,
-  Barcode,
-  Video,
-  Printer,
-  CreditCard,
-  Zap,
-  TrendingUp,
-  ShieldCheck,
-  Receipt,
-  Plug,
-  Mail,
-  Phone,
-  MapPin,
-  Check,
-  X,
-  Star,
-  ArrowRight,
-  PlayCircle,
-  ChevronDown,
-  Menu,
-  CheckCircle,
-  AlertCircle,
-  Twitter,
-  Linkedin,
-  Instagram,
-} from "lucide-react"
-import { toast } from "sonner"
-import { ThemeToggle } from "@/components/ui/theme-toggle"
+import { useEffect, useState } from "react";
+import { useTheme } from "next-themes";
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+const recentVehicles = [
+  { plate: "ABC-123", name: "Juan Pérez", status: "green", statusText: "Entregado" },
+  { plate: "XYZ-789", name: "María López", status: "yellow", statusText: "Pagado" },
+  { plate: "DEF-456", name: "Carlos Ruiz", status: "red", statusText: "Sin pago" },
+  { plate: "GHI-012", name: "Ana Torres", status: "blue", statusText: "En revisión" },
+];
 
-function Stars({ full, half = false }: { full: number; half?: boolean }) {
-  return (
-    <div className="flex gap-0.5 text-yellow-400 mb-4">
-      {Array.from({ length: full }).map((_, i) => (
-        <Star key={i} className="h-4 w-4 fill-yellow-400 stroke-yellow-400" />
-      ))}
-      {half && (
-        <span className="relative inline-block h-4 w-4">
-          <Star className="absolute h-4 w-4 stroke-yellow-400" />
-          <span className="absolute left-0 top-0 overflow-hidden w-1/2">
-            <Star className="h-4 w-4 fill-yellow-400 stroke-yellow-400" />
-          </span>
-        </span>
-      )}
-    </div>
-  )
-}
+const sectors = [
+  { icon: "hotel", name: "Hoteles", desc: "Lujo y conveniencia" },
+  { icon: "restaurant", name: "Restaurantes", desc: "Experiencia completa" },
+  { icon: "hospital", name: "Hospitales", desc: "Emergencias ágiles" },
+  { icon: "casino", name: "Casinos", desc: "Premium 24/7" },
+  { icon: "shopping", name: "Centros Comerciales", desc: "Gran escala" },
+  { icon: "airport", name: "Aeropuertos", desc: "Larga estancia" },
+  { icon: "event", name: "Eventos", desc: "Temporadas altas" },
+];
 
-// ── Data ──────────────────────────────────────────────────────────────────────
+const chartHeights = [40, 65, 85, 72, 90, 60, 45, 55, 70, 80, 75, 50];
 
-const products = [
-  {
-    icon: Smartphone,
-    name: "getMyCarro Basic",
-    description:
-      "Aplicación móvil para pequeños estacionamientos. Gestión simple de entradas y salidas desde cualquier smartphone.",
-    features: ["Hasta 50 espacios", "App iOS y Android", "Reportes básicos"],
-    price: "$29",
-    period: "/mes",
-    featured: false,
-    cta: "Ver más",
-  },
-  {
-    icon: Monitor,
-    name: "getMyCarro Pro",
-    description:
-      "Sistema completo para estacionamientos medianos. Incluye hardware de básculas, cámaras y panel administrativo web.",
-    features: [
-      "Hasta 500 espacios",
-      "Lector de placas (LPR)",
-      "Facturación electrónica",
-      "Múltiples cajeros",
-    ],
-    price: "$99",
-    period: "/mes",
-    featured: true,
-    cta: "Ver más",
-  },
-  {
-    icon: Building2,
-    name: "getMyCarro Enterprise",
-    description:
-      "Solución corporativa para múltiples sedes. Integración con sistemas ERP, business intelligence y API completa.",
-    features: [
-      "Espacios ilimitados",
-      "Múltiples locaciones",
-      "API y Webhooks",
-      "Soporte dedicado 24/7",
-    ],
-    price: "Custom",
-    period: "",
-    featured: false,
-    cta: "Contactar",
-  },
-]
+export default function HomePage() {
+  const { theme, setTheme } = useTheme();
+  const [scrolled, setScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-const hardware = [
-  { icon: Barcode, name: "Lector de Códigos", desc: "Escáner 2D para vales QR y tickets", price: "$199" },
-  { icon: Video, name: "Cámara LPR", desc: "Reconocimiento automático de placas", price: "$599" },
-  { icon: Printer, name: "Impresora Térmica", desc: "Tickets de alta velocidad 80mm", price: "$149" },
-  { icon: CreditCard, name: "Terminal POS", desc: "Pago con tarjeta integrado", price: "$299" },
-]
-
-const plansData = {
-  monthly: [
-    {
-      name: "Starter",
-      sub: "Para iniciar",
-      price: "$29",
-      featured: false,
-      included: ["1 usuario", "50 vehículos/día", "App móvil básica", "Soporte por email"],
-      excluded: ["Reportes avanzados"],
-      cta: "Comenzar",
-    },
-    {
-      name: "Business",
-      sub: "Para negocios en crecimiento",
-      price: "$99",
-      featured: true,
-      included: [
-        "5 usuarios",
-        "Vehículos ilimitados",
-        "Lector de placas (LPR)",
-        "Facturación electrónica",
-        "Soporte prioritario",
-      ],
-      excluded: [],
-      cta: "Elegir Plan",
-    },
-    {
-      name: "Enterprise",
-      sub: "Solución corporativa",
-      price: "Custom",
-      featured: false,
-      included: [
-        "Usuarios ilimitados",
-        "Múltiples locaciones",
-        "API completa",
-        "Personalización total",
-        "Gerente de cuenta",
-      ],
-      excluded: [],
-      cta: "Contactar Ventas",
-    },
-  ],
-  yearly: [
-    {
-      name: "Starter",
-      sub: "Para iniciar",
-      price: "$23",
-      featured: false,
-      included: ["1 usuario", "50 vehículos/día", "App móvil básica", "Soporte por email"],
-      excluded: ["Reportes avanzados"],
-      cta: "Comenzar",
-    },
-    {
-      name: "Business",
-      sub: "Para negocios en crecimiento",
-      price: "$79",
-      featured: true,
-      included: [
-        "5 usuarios",
-        "Vehículos ilimitados",
-        "Lector de placas (LPR)",
-        "Facturación electrónica",
-        "Soporte prioritario",
-      ],
-      excluded: [],
-      cta: "Elegir Plan",
-    },
-    {
-      name: "Enterprise",
-      sub: "Solución corporativa",
-      price: "Custom",
-      featured: false,
-      included: [
-        "Usuarios ilimitados",
-        "Múltiples locaciones",
-        "API completa",
-        "Personalización total",
-        "Gerente de cuenta",
-      ],
-      excluded: [],
-      cta: "Contactar Ventas",
-    },
-  ],
-}
-
-const featuresList = [
-  { icon: Zap, title: "Entrada Rápida", desc: "Proceso de entrada en menos de 10 segundos con escaneo automático de placas." },
-  { icon: TrendingUp, title: "Analytics en Tiempo Real", desc: "Dashboard con ocupación, ingresos y estadísticas de uso instantáneas." },
-  { icon: Smartphone, title: "App Móvil", desc: "Gestiona tu estacionamiento desde cualquier lugar con nuestras apps nativas." },
-  { icon: ShieldCheck, title: "Seguridad Avanzada", desc: "Encriptación de datos, backups automáticos y cumplimiento GDPR." },
-  { icon: Receipt, title: "Múltiples Métodos de Pago", desc: "Efectivo, tarjeta de crédito, débito, wallets digitales y criptomonedas." },
-  { icon: Plug, title: "Integraciones", desc: "Conecta con SAP, Oracle, Salesforce y más de 100 aplicaciones." },
-]
-
-const testimonials = [
-  {
-    stars: 5,
-    half: false,
-    quote: "Redujimos el tiempo de espera en un 60%. La implementación fue rápida y el soporte técnico es excelente.",
-    initials: "MR",
-    name: "Miguel Rodríguez",
-    company: "Parking Centro, Madrid",
-  },
-  {
-    stars: 5,
-    half: false,
-    quote: "La versión Enterprise nos permitió centralizar la gestión de nuestras 12 sedes. Increíble ROI en 3 meses.",
-    initials: "AL",
-    name: "Ana López",
-    company: "Grupo Estacionamientos MX",
-  },
-  {
-    stars: 4,
-    half: true,
-    quote: "Perfecto para nuestro hotel. La integración con nuestro PMS fue seamless. Muy recomendado.",
-    initials: "JP",
-    name: "Juan Pérez",
-    company: "Hotel Plaza, Buenos Aires",
-  },
-]
-
-// ── Main Component ────────────────────────────────────────────────────────────
-
-export default function LandingPage() {
-  const [scrolled, setScrolled] = useState(false)
-  const [mobileOpen, setMobileOpen] = useState(false)
-  const [billing, setBilling] = useState<"monthly" | "yearly">("monthly")
-  const revealRefs = useRef<(HTMLElement | null)[]>([])
-
-  // Navbar scroll effect
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 50)
-    window.addEventListener("scroll", onScroll, { passive: true })
-    return () => window.removeEventListener("scroll", onScroll)
-  }, [])
+    const handleScroll = () => setScrolled(window.scrollY > 50);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
-  // Scroll reveal
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting) entry.target.classList.add("active")
-        })
+          if (entry.isIntersecting) {
+            entry.target.classList.add("visible");
+          }
+        });
       },
-      { threshold: 0.1, rootMargin: "0px 0px -50px 0px" }
-    )
-    revealRefs.current.forEach((el) => el && observer.observe(el))
-    return () => observer.disconnect()
-  }, [])
+      { threshold: 0.1 }
+    );
 
-  const addReveal = (el: HTMLElement | null) => {
-    if (el && !revealRefs.current.includes(el)) revealRefs.current.push(el)
-  }
+    document.querySelectorAll(".reveal, .reveal-stagger").forEach((el) => {
+      observer.observe(el);
+    });
 
-  const handleContactSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    toast.success("Mensaje enviado", { description: "Nos pondremos en contacto contigo pronto." })
-  }
-
-  const plans = plansData[billing]
+    return () => observer.disconnect();
+  }, []);
 
   return (
-    <div className="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 overflow-x-hidden font-sans antialiased transition-colors duration-300">
+    <>
+      {/* HEADER */}
+      <header id="siteHeader" className={scrolled ? "scrolled" : ""}>
+        <div className="container nav-inner">
+          <a href="#top" className="logo" aria-label="GetMyCarro">
+            <span className="logo-mark">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 17h14M7 17v2a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-2M14 17v2a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-2M3 13l2-7a2 2 0 0 1 2-1.5h10a2 2 0 0 1 2 1.5l2 7M5 13h14M7.5 9.5h9" />
+              </svg>
+            </span>
+            <span className="logo-text">GetMy<span>Carro</span></span>
+          </a>
 
-      {/* ── NAVBAR ── */}
-      <nav
-        className={`fixed w-full z-50 top-0 transition-all duration-300 ${
-          scrolled
-            ? "bg-white/80 dark:bg-slate-900/80 backdrop-blur-md shadow-lg"
-            : ""
-        }`}
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
-            {/* Logo */}
-            <div className="flex items-center space-x-3 group cursor-pointer">
-              <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30 group-hover:shadow-blue-500/50 transition-all duration-300 group-hover:scale-110">
-                <Car className="text-white h-6 w-6" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-black gradient-text tracking-tight">getMyCarro</h1>
-                <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold tracking-wider uppercase">
-                  Enterprise Solutions
-                </p>
-              </div>
-            </div>
+          <nav className="primary" aria-label="Principal">
+            <a href="#b2c">App B2C</a>
+            <a href="#b2b">Soluciones B2B</a>
+            <a href="#flow">Cómo funciona</a>
+            <a href="#benefits">Beneficios</a>
+            <a href="#contact">Contacto</a>
+          </nav>
 
-            {/* Desktop nav */}
-            <div className="hidden md:flex items-center space-x-8">
-              {["#productos", "#precios", "#caracteristicas", "#contacto"].map((href, i) => (
-                <a
-                  key={href}
-                  href={href}
-                  className="text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                >
-                  {["Productos", "Precios", "Características", "Contacto"][i]}
-                </a>
-              ))}
-              <ThemeToggle />
-              <Link
-                href="/login"
-                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 transition-all duration-300 hover:scale-105 text-sm"
-              >
-                Iniciar Sesión
-              </Link>
-            </div>
-
-            {/* Mobile button */}
-            <button
-              className="md:hidden p-2 text-slate-600 dark:text-slate-300"
-              onClick={() => setMobileOpen(!mobileOpen)}
-            >
-              <Menu className="h-6 w-6" />
+          <div className="nav-actions">
+            <button className="theme-toggle" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label="Cambiar tema">
+              <span className="knob">
+                <svg className="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <circle cx="12" cy="12" r="4" />
+                  <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+                </svg>
+                <svg className="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+                </svg>
+              </span>
+            </button>
+            <a href="/login" className="btn btn-ghost">
+               Iniciar sesión
+             </a>
+             <a href="#contact" className="btn btn-primary">
+               Solicitar demo
+               <svg className="btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                 <path d="M5 12h14M13 5l7 7-7 7" />
+               </svg>
+             </a>
+            <button className="menu-toggle" aria-label="Menú" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+              <span></span>
             </button>
           </div>
         </div>
 
-        {/* Mobile menu */}
-        {mobileOpen && (
-          <div className="md:hidden bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800">
-            <div className="px-4 pt-2 pb-6 space-y-1">
-              {["#productos", "#precios", "#caracteristicas", "#contacto"].map((href, i) => (
-                <a
-                  key={href}
-                  href={href}
-                  onClick={() => setMobileOpen(false)}
-                  className="block px-3 py-2 text-base font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
-                >
-                  {["Productos", "Precios", "Características", "Contacto"][i]}
-                </a>
-              ))}
-              <div className="flex items-center gap-3 px-3 pt-2">
-                <ThemeToggle />
-                <Link
-                  href="/login"
-                  className="px-5 py-2 bg-blue-600 text-white rounded-xl font-semibold text-sm"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  Iniciar Sesión
-                </Link>
-              </div>
-            </div>
+        {mobileMenuOpen && (
+          <div className="container mt-4 pb-4">
+            <nav className="flex flex-col gap-2">
+              <a href="#b2c" className="p-2 rounded-lg hover:bg-accent/10">App B2C</a>
+              <a href="#b2b" className="p-2 rounded-lg hover:bg-accent/10">Soluciones B2B</a>
+              <a href="#flow" className="p-2 rounded-lg hover:bg-accent/10">Cómo funciona</a>
+              <a href="#benefits" className="p-2 rounded-lg hover:bg-accent/10">Beneficios</a>
+              <a href="#contact" className="p-2 rounded-lg hover:bg-accent/10">Contacto</a>
+            </nav>
           </div>
         )}
-      </nav>
+      </header>
 
-      {/* ── HERO ── */}
-      <section className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden">
-        <div className="absolute inset-0 mesh-gradient opacity-10 dark:opacity-20 pointer-events-none" />
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%239C92AC%22%20fill-opacity%3D%220.05%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] opacity-50 pointer-events-none" />
+      {/* HERO */}
+      <section className="hero" id="top">
+        <div className="orb orb-1"></div>
+        <div className="orb orb-2"></div>
+        <div className="hero-grid"></div>
 
-        {/* Floating blobs */}
-        <div className="absolute top-1/4 left-10 w-20 h-20 bg-blue-500/20 rounded-full blur-xl animate-float" />
-        <div className="absolute bottom-1/4 right-10 w-32 h-32 bg-blue-600/20 rounded-full blur-2xl animate-float-delayed" />
+        <div className="container hero-inner">
+          <div className="hero-content reveal">
+            <span className="eyebrow"><span className="dot"></span> Nueva era del valet parking · 2026</span>
+            <h1>El valet parking,<br /><span className="accent">finalmente inteligente.</span></h1>
+            <p>GetMyCarro conecta usuarios, negocios y operadores en una sola plataforma. Solicita tu carro desde la app, paga digitalmente y dale a tu negocio el control total de cada vehículo — en tiempo real.</p>
 
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div
-            className="hero-slide-up inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm font-semibold mb-8"
-            style={{ animationDelay: "0s" }}
-          >
-            <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
-            Nueva Versión 3.0 Disponible
-          </div>
+            <div className="hero-cta">
+              <a href="#b2c" className="btn btn-primary">
+                Ver solución B2C
+                <svg className="btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M5 12h14M13 5l7 7-7 7" />
+                </svg>
+              </a>
+              <a href="#b2b" className="btn btn-secondary">Explorar B2B</a>
+            </div>
 
-          <h1
-            className="hero-slide-up text-5xl md:text-7xl font-black mb-6 leading-tight"
-            style={{ animationDelay: "0.1s" }}
-          >
-            <span className="block text-slate-900 dark:text-white">Gestión Inteligente</span>
-            <span className="block gradient-text mt-2">de Parking</span>
-          </h1>
-
-          <p
-            className="hero-slide-up text-xl md:text-2xl text-slate-600 dark:text-slate-300 max-w-3xl mx-auto mb-10 font-light"
-            style={{ animationDelay: "0.2s" }}
-          >
-            Sistemas profesionales de valet parking para empresas.
-            Desde pequeños estacionamientos hasta complejos corporativos.
-          </p>
-
-          <div
-            className="hero-slide-up flex flex-col sm:flex-row gap-4 justify-center items-center"
-            style={{ animationDelay: "0.3s" }}
-          >
-            <a
-              href="#productos"
-              className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold text-lg shadow-xl shadow-blue-500/30 hover:shadow-blue-500/50 transition-all duration-300 hover:scale-105 flex items-center gap-3"
-            >
-              <span>Ver Productos</span>
-              <ArrowRight className="h-5 w-5" />
-            </a>
-            <Link
-              href="/login"
-              className="px-8 py-4 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-2 border-slate-200 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-500 rounded-2xl font-bold text-lg transition-all duration-300 flex items-center gap-3"
-            >
-              <PlayCircle className="h-5 w-5 text-blue-500" />
-              <span>Acceder al Sistema</span>
-            </Link>
-          </div>
-
-          {/* Stats */}
-          <div
-            className="hero-slide-up mt-16 grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto"
-            style={{ animationDelay: "0.4s" }}
-          >
-            {[
-              { value: "500+", label: "Clientes Activos" },
-              { value: "2M+", label: "Vales Generados" },
-              { value: "99.9%", label: "Uptime" },
-              { value: "24/7", label: "Soporte Técnico" },
-            ].map((s) => (
-              <div key={s.label} className="text-center">
-                <div className="text-3xl md:text-4xl font-bold text-blue-600 dark:text-blue-400">{s.value}</div>
-                <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">{s.label}</div>
+            <div className="hero-stats">
+              <div>
+                <div className="stat-num">−72%</div>
+                <div className="stat-label">de tiempo<br />de espera</div>
               </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
-          <ChevronDown className="h-6 w-6 text-slate-400" />
-        </div>
-      </section>
-
-      {/* ── PRODUCTS ── */}
-      <section id="productos" className="py-24 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div ref={addReveal} className="reveal text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-slate-900 dark:text-white">
-              Nuestros <span className="gradient-text">Productos</span>
-            </h2>
-            <p className="text-xl text-slate-600 dark:text-slate-400 max-w-3xl mx-auto">
-              Soluciones completas adaptadas a cualquier tamaño de operación
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {products.map((p) => (
-              <div
-                key={p.name}
-                ref={addReveal}
-                className={`feature-card reveal group bg-white dark:bg-slate-800 rounded-3xl p-8 shadow-xl border transition-all duration-300 ${
-                  p.featured
-                    ? "border-2 border-blue-500 shadow-2xl shadow-blue-500/20 md:-translate-y-4 relative"
-                    : "border-slate-100 dark:border-slate-700 hover:border-blue-500/50 dark:hover:border-blue-500/50"
-                }`}
-              >
-                {p.featured && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-blue-600 text-white text-xs font-bold rounded-full uppercase tracking-wider">
-                    Más Popular
-                  </div>
-                )}
-                <div
-                  className={`feature-icon w-16 h-16 rounded-2xl flex items-center justify-center mb-6 transition-colors duration-300 ${
-                    p.featured
-                      ? "bg-blue-600"
-                      : "bg-blue-100 dark:bg-blue-900/30 group-hover:bg-blue-600"
-                  }`}
-                >
-                  <p.icon
-                    className={`h-7 w-7 transition-colors ${
-                      p.featured
-                        ? "text-white"
-                        : "text-blue-600 dark:text-blue-400 group-hover:text-white"
-                    }`}
-                  />
-                </div>
-                <h3 className="text-2xl font-bold mb-3 text-slate-900 dark:text-white">{p.name}</h3>
-                <p className="text-slate-600 dark:text-slate-300 mb-6 leading-relaxed">{p.description}</p>
-                <ul className="space-y-3 mb-8">
-                  {p.features.map((f) => (
-                    <li key={f} className="check-item flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
-                      <Check className="h-4 w-4 text-blue-500 shrink-0" />
-                      <span>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="flex items-center justify-between pt-6 border-t border-slate-100 dark:border-slate-700">
-                  <span className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                    {p.price}
-                    <span className="text-sm text-slate-500 font-normal">{p.period}</span>
-                  </span>
-                  <Link
-                    href="/login"
-                    className={`px-6 py-2 rounded-xl font-semibold transition-all duration-300 text-sm ${
-                      p.featured
-                        ? "bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/30"
-                        : "bg-slate-100 dark:bg-slate-700 hover:bg-blue-600 dark:hover:bg-blue-600 text-slate-700 dark:text-slate-300 hover:text-white"
-                    }`}
-                  >
-                    {p.cta}
-                  </Link>
-                </div>
+              <div>
+                <div className="stat-num">4.9★</div>
+                <div className="stat-label">satisfacción<br />de usuarios</div>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── HARDWARE ── */}
-      <section className="py-24 bg-slate-100 dark:bg-slate-900/50 relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div ref={addReveal} className="reveal text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-slate-900 dark:text-white">
-              Hardware <span className="gradient-text">Compatible</span>
-            </h2>
-            <p className="text-xl text-slate-600 dark:text-slate-400 max-w-3xl mx-auto">
-              Equipamiento profesional para completar tu sistema
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {hardware.map((h) => (
-              <div
-                key={h.name}
-                ref={addReveal}
-                className="glass-card reveal rounded-2xl p-6 text-center group hover:shadow-2xl transition-all duration-300"
-              >
-                <div className="w-full h-40 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 rounded-xl mb-4 flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
-                  <h.icon className="h-14 w-14 text-slate-400" />
-                </div>
-                <h4 className="text-lg font-bold mb-2 text-slate-900 dark:text-white">{h.name}</h4>
-                <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">{h.desc}</p>
-                <span className="text-xl font-bold text-blue-600 dark:text-blue-400">{h.price}</span>
+              <div>
+                <div className="stat-num">100%</div>
+                <div className="stat-label">operación<br />digitalizada</div>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── PRICING ── */}
-      <section id="precios" className="py-24 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div ref={addReveal} className="reveal text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-slate-900 dark:text-white">
-              Planes y <span className="gradient-text">Precios</span>
-            </h2>
-            <p className="text-xl text-slate-600 dark:text-slate-400 max-w-3xl mx-auto mb-8">
-              Elige el plan que mejor se adapte a tu negocio
-            </p>
-
-            {/* Billing toggle */}
-            <div className="inline-flex items-center gap-1 p-1 bg-slate-200 dark:bg-slate-800 rounded-2xl">
-              <button
-                onClick={() => setBilling("monthly")}
-                className={`px-6 py-2 rounded-xl font-semibold transition-all duration-300 text-sm ${
-                  billing === "monthly"
-                    ? "bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm"
-                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
-                }`}
-              >
-                Mensual
-              </button>
-              <button
-                onClick={() => setBilling("yearly")}
-                className={`px-6 py-2 rounded-xl font-semibold transition-all duration-300 text-sm ${
-                  billing === "yearly"
-                    ? "bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm"
-                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
-                }`}
-              >
-                Anual{" "}
-                <span className="text-xs text-emerald-500 font-bold ml-1">-20%</span>
-              </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {plans.map((plan) => (
-              <div
-                key={plan.name}
-                ref={addReveal}
-                className={`price-card reveal bg-white dark:bg-slate-800 rounded-3xl p-8 shadow-xl relative ${
-                  plan.featured
-                    ? "border-2 border-blue-500 shadow-2xl shadow-blue-500/20 md:scale-105 z-10"
-                    : "border border-slate-200 dark:border-slate-700"
-                }`}
-              >
-                {plan.featured && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 bg-blue-600 text-white text-xs font-bold rounded-full uppercase tracking-wider">
-                    Recomendado
-                  </div>
-                )}
-                <div className="mb-6">
-                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">{plan.name}</h3>
-                  <p className="text-slate-500 dark:text-slate-400 text-sm">{plan.sub}</p>
-                </div>
-                <div className="mb-6">
-                  <span
-                    className={`text-5xl font-black ${
-                      plan.featured ? "text-blue-600 dark:text-blue-400" : "text-slate-900 dark:text-white"
-                    }`}
-                  >
-                    {plan.price}
-                  </span>
-                  {plan.price !== "Custom" && (
-                    <span className="text-slate-500 dark:text-slate-400 text-base">/mes</span>
-                  )}
-                </div>
-                <ul className="space-y-4 mb-8">
-                  {plan.included.map((f) => (
-                    <li key={f} className="flex items-center gap-3 text-slate-600 dark:text-slate-300 text-sm">
-                      <Check className="h-4 w-4 text-blue-500 shrink-0" />
-                      <span>{f}</span>
-                    </li>
-                  ))}
-                  {plan.excluded.map((f) => (
-                    <li key={f} className="flex items-center gap-3 text-slate-400 dark:text-slate-500 text-sm">
-                      <X className="h-4 w-4 shrink-0" />
-                      <span>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Link
-                  href="/login"
-                  className={`block w-full py-3 rounded-xl font-bold text-center transition-all duration-300 text-sm ${
-                    plan.featured
-                      ? "bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/30"
-                      : plan.name === "Enterprise"
-                      ? "border-2 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:border-blue-600 hover:text-blue-600 dark:hover:border-blue-400 dark:hover:text-blue-400"
-                      : "border-2 border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 dark:hover:text-white"
-                  }`}
-                >
-                  {plan.cta}
-                </Link>
+          {/* PHONE MOCKUP */}
+          <div className="hero-visual reveal">
+            {/* Floating cards */}
+            <div className="float-card fc-1">
+              <div className="float-card-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                </svg>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── FEATURES ── */}
-      <section id="caracteristicas" className="py-24 bg-slate-100 dark:bg-slate-900/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div ref={addReveal} className="reveal text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-slate-900 dark:text-white">
-              Características <span className="gradient-text">Destacadas</span>
-            </h2>
-            <p className="text-xl text-slate-600 dark:text-slate-400 max-w-3xl mx-auto">
-              Todo lo que necesitas para gestionar tu estacionamiento profesionalmente
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {featuresList.map((f) => (
-              <div
-                key={f.title}
-                ref={addReveal}
-                className="reveal feature-card bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 group"
-              >
-                <div className="feature-icon w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center mb-4 group-hover:bg-blue-600 transition-colors duration-300">
-                  <f.icon className="h-5 w-5 text-blue-600 dark:text-blue-400 group-hover:text-white transition-colors" />
-                </div>
-                <h4 className="text-lg font-bold mb-2 text-slate-900 dark:text-white">{f.title}</h4>
-                <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">{f.desc}</p>
+              <div>
+                <strong>12 vehículos</strong>
+                <small>Activos ahora</small>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
+            </div>
+            <div className="float-card fc-2">
+              <div className="float-card-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M12 8c-1.1 0-2 1.1-2 2.5S12 16 12 16s2-4.4 2-5.5S13.1 8 12 8z" />
+                  <circle cx="12" cy="22" r="1" />
+                </svg>
+              </div>
+              <div>
+                <strong>Zona VIP</strong>
+                <small>4 espacios libres</small>
+              </div>
+            </div>
+            <div className="float-card fc-3">
+              <div className="float-card-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+              </div>
+              <div>
+                <strong>3 solicitudes</strong>
+                <small>En cola</small>
+              </div>
+            </div>
+            <div className="float-card fc-4">
+              <div className="float-card-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                </svg>
+              </div>
+              <div>
+                <strong>$1,240</strong>
+                <small>Facturado hoy</small>
+              </div>
+            </div>
 
-      {/* ── TESTIMONIALS ── */}
-      <section className="py-24 relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div ref={addReveal} className="reveal text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold mb-4 text-slate-900 dark:text-white">
-              Lo que dicen nuestros <span className="gradient-text">clientes</span>
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {testimonials.map((t) => (
-              <div
-                key={t.name}
-                ref={addReveal}
-                className="reveal bg-white dark:bg-slate-800 rounded-2xl p-8 shadow-lg border border-slate-100 dark:border-slate-700"
-              >
-                <Stars full={t.stars} half={t.half} />
-                <p className="text-slate-600 dark:text-slate-300 mb-6 italic text-sm leading-relaxed">
-                  &ldquo;{t.quote}&rdquo;
-                </p>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center shrink-0">
-                    <span className="font-bold text-blue-600 dark:text-blue-400 text-sm">{t.initials}</span>
-                  </div>
+            {/* Phone */}
+            <div className="phone">
+              <div className="phone-screen">
+                <div className="phone-notch"></div>
+                <div className="app-header">
                   <div>
-                    <p className="font-bold text-slate-900 dark:text-white text-sm">{t.name}</p>
-                    <p className="text-xs text-slate-500">{t.company}</p>
+                    <div className="app-greet">Buenos días</div>
+                    <div className="app-name">Juan Pérez</div>
+                  </div>
+                  <div className="app-avatar">JP</div>
+                </div>
+
+                <div className="app-status-card">
+                  <div className="app-label">Estado actual</div>
+                  <h3>Tu carro viene en camino</h3>
+                  <div className="app-progress">
+                    <div className="app-progress-fill"></div>
+                  </div>
+                  <div className="app-eta">ETA: 3 minutos</div>
+                </div>
+
+                <div className="app-section-title">Acciones rápidas</div>
+                <div className="app-action-row">
+                  <div className="app-action">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <path d="M5 17h14M7 17v2a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-2M14 17v2a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-2M3 13l2-7a2 2 0 0 1 2-1.5h10a2 2 0 0 1 2 1.5l2 7M5 13h14M7.5 9.5h9" />
+                    </svg>
+                    Solicitar
+                  </div>
+                  <div className="app-action">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                    Historial
+                  </div>
+                  <div className="app-action">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                      <line x1="1" y1="10" x2="23" y2="10" />
+                    </svg>
+                    Pagos
+                  </div>
+                  <div className="app-action">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <circle cx="12" cy="12" r="3" />
+                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 9a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.51 1 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                    </svg>
+                    Ajustes
                   </div>
                 </div>
+
+                <div className="app-section-title">Actividad reciente</div>
+                <div className="app-trip-card">
+                  <div className="app-car-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round">
+                      <path d="M5 17h14M7 17v2a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-2M14 17v2a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-2M3 13l2-7a2 2 0 0 1 2-1.5h10a2 2 0 0 1 2 1.5l2 7M5 13h14" />
+                    </svg>
+                  </div>
+                  <div className="app-trip-info">
+                    <strong>ABC-123</strong>
+                    <small>Hoy, 14:30 • Entregado</small>
+                  </div>
+                  <span className="app-trip-tag">Listo</span>
+                </div>
               </div>
-            ))}
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ── CTA BANNER ── */}
-      <section className="py-24 relative">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div
-            ref={addReveal}
-            className="reveal bg-gradient-to-br from-blue-600 to-blue-800 rounded-3xl p-12 md:p-16 text-center text-white shadow-2xl shadow-blue-500/30 relative overflow-hidden"
-          >
-            <div className="absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20viewBox%3D%220%200%2060%2060%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%220.1%22%3E%3Cpath%20d%3D%22M36%2034v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6%2034v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6%204V0H4v4H0v2h4v4h2V6h4V4H6z%22/%3E%3C/g%3E%3C/g%3E%3C/svg%3E')] pointer-events-none" />
-            <h2 className="text-3xl md:text-5xl font-bold mb-6 relative z-10">
-              ¿Listo para modernizar tu estacionamiento?
-            </h2>
-            <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto relative z-10">
-              Accede ahora y comienza a gestionar tu servicio de valet de forma profesional.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center relative z-10">
-              <Link
-                href="/login"
-                className="px-8 py-4 bg-white text-blue-700 rounded-2xl font-bold text-lg hover:bg-blue-50 transition-all duration-300 shadow-lg"
-              >
-                Iniciar Sesión
-              </Link>
-              <a
-                href="#contacto"
-                className="px-8 py-4 bg-transparent border-2 border-white text-white rounded-2xl font-bold text-lg hover:bg-white/10 transition-all duration-300"
-              >
-                Hablar con Ventas
+      {/* TRUSTED-BY MARQUEE */}
+      <section className="marquee-section">
+        <div className="container">
+          <div className="marquee-label">Tecnología confiada por</div>
+          <div className="marquee">
+            <div className="marquee-track">
+              {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+                <div className="marquee-item" key={`m1-${i}`}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <path d="M3 9h18M9 21V9" />
+                  </svg>
+                  Hotel Premium
+                </div>
+              ))}
+            </div>
+            <div className="marquee-track" aria-hidden="true">
+              {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+                <div className="marquee-item" key={`m2-${i}`}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <path d="M3 9h18M9 21V9" />
+                  </svg>
+                  Hotel Premium
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* VERTICAL SPLIT (B2C / B2B) */}
+      <section className="section" id="b2c">
+        <div className="container">
+          <div className="section-head reveal">
+            <span className="eyebrow"><span className="dot"></span> Dos lados, una misma plataforma</span>
+            <h2>Diseñado para <span className="gradient-text">usuarios y negocios</span></h2>
+            <p>Ya sea que estés estacionando tu auto o gestionando un valet parking completo, GetMyCarro tiene la solución.</p>
+          </div>
+
+          <div className="vertical-split reveal-stagger">
+            {/* B2C Card */}
+            <div className="vertical-card vc-b2c">
+              <div className="vc-tag">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M5 17h14M7 17v2a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-2M14 17v2a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-2M3 13l2-7a2 2 0 0 1 2-1.5h10a2 2 0 0 1 2 1.5l2 7M5 13h14" />
+                </svg>
+                APP B2C
+              </div>
+              <h3>Para quienes estacionan</h3>
+              <p>Solicita tu carro desde el celular, paga digitalmente y rastrea tu vehículo en tiempo real. Sin filas, sin estrés.</p>
+              <div className="vc-feature-list">
+                <div className="vc-feature">
+                  <span className="check">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                  Solicitud en 1 clic
+                </div>
+                <div className="vc-feature">
+                  <span className="check">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                  Pagos digitales
+                </div>
+                <div className="vc-feature">
+                  <span className="check">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                  Tiempo real
+                </div>
+                <div className="vc-feature">
+                  <span className="check">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                  Historial completo
+                </div>
+              </div>
+              <a href="#contact" className="vc-link">
+                Conocer la App B2C
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M5 12h14M13 5l7 7-7 7" />
+                </svg>
+              </a>
+            </div>
+
+            {/* B2B Card */}
+            <div className="vertical-card vc-b2b" id="b2b">
+              <div className="vc-tag">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                  <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+                </svg>
+                SOLUCIONES B2B
+              </div>
+              <h3>Para negocios y operadores</h3>
+              <p>Control total de tu operación: empleados, facturación, reportes y visualización de ocupación en tiempo real.</p>
+              <div className="vc-feature-list">
+                <div className="vc-feature">
+                  <span className="check">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                  Dashboard privado
+                </div>
+                <div className="vc-feature">
+                  <span className="check">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                  Gestión de valets
+                </div>
+                <div className="vc-feature">
+                  <span className="check">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                  Reportes avanzados
+                </div>
+                <div className="vc-feature">
+                  <span className="check">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                  Facturación
+                </div>
+              </div>
+              <a href="#contact" className="vc-link">
+                Explorar soluciones B2B
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M5 12h14M13 5l7 7-7 7" />
+                </svg>
               </a>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── CONTACT ── */}
-      <section id="contacto" className="py-24 bg-slate-100 dark:bg-slate-900/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-            {/* Info */}
-            <div ref={addReveal} className="reveal">
-              <h2 className="text-4xl font-bold mb-6 text-slate-900 dark:text-white">
-                Contacta con <span className="gradient-text">nosotros</span>
-              </h2>
-              <p className="text-lg text-slate-600 dark:text-slate-400 mb-8 leading-relaxed">
-                ¿Tienes preguntas? Nuestro equipo está listo para ayudarte a encontrar la
-                solución perfecta para tu negocio.
-              </p>
-              <div className="space-y-6">
-                {[
-                  { icon: Mail, label: "Email", value: "ventas@getmycarro.com" },
-                  { icon: Phone, label: "Teléfono", value: "+1 (555) 123-4567" },
-                  { icon: MapPin, label: "Oficinas", value: "Madrid, España | Miami, USA" },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center shrink-0">
-                      <item.icon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">{item.label}</p>
-                      <p className="font-semibold text-slate-900 dark:text-white">{item.value}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+      {/* FEATURE GRID (B2C) */}
+      <section className="section">
+        <div className="container">
+          <div className="section-head reveal">
+            <span className="eyebrow"><span className="dot"></span> Experiencia de usuario</span>
+            <h2>App B2C: <span className="gradient-text">todo en tu bolsillo</span></h2>
+            <p>Descubre cómo la app mejora la experiencia de estacionamiento con tecnología inteligente.</p>
+          </div>
 
-            {/* Form */}
-            <div ref={addReveal} className="reveal bg-white dark:bg-slate-800 rounded-3xl p-8 shadow-xl">
-              <form onSubmit={handleContactSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                      Nombre
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Tu nombre"
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:text-white transition-all text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                      Empresa
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Tu empresa"
-                      className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:text-white transition-all text-sm"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    placeholder="tu@email.com"
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:text-white transition-all text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                    Producto de interés
-                  </label>
-                  <select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:text-white transition-all text-sm">
-                    <option>getMyCarro Basic</option>
-                    <option>getMyCarro Pro</option>
-                    <option>getMyCarro Enterprise</option>
-                    <option>Hardware</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                    Mensaje
-                  </label>
-                  <textarea
-                    rows={4}
-                    placeholder="¿Cómo podemos ayudarte?"
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:text-white transition-all resize-none text-sm"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-lg shadow-lg shadow-blue-500/30 transition-all duration-300 hover:scale-[1.02]"
-                >
-                  Enviar Mensaje
-                </button>
-              </form>
+          <div className="feature-grid reveal-stagger">
+            <div className="feature-card">
+              <div className="feature-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M5 17h14M7 17v2a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-2M14 17v2a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-2M3 13l2-7a2 2 0 0 1 2-1.5h10a2 2 0 0 1 2 1.5l2 7M5 13h14" />
+                </svg>
+              </div>
+              <h4>Solicitud instantánea</h4>
+              <p>Un toque y tu carro va en camino. Olvídate de hacer fila o esperar en recepción.</p>
+            </div>
+            <div className="feature-card">
+              <div className="feature-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                  <line x1="1" y1="10" x2="23" y2="10" />
+                </svg>
+              </div>
+              <h4>Pagos integrados</h4>
+              <p>Paga con Zelle, Binance, tarjeta o efectivo. Todo registrado digitalmente.</p>
+            </div>
+            <div className="feature-card">
+              <div className="feature-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                  <circle cx="12" cy="10" r="3" />
+                </svg>
+              </div>
+              <h4>Mapa en vivo</h4>
+              <p>Ve dónde está tu vehículo y cuánto tiempo falta para que llegue a la entrada.</p>
+            </div>
+            <div className="feature-card">
+              <div className="feature-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+              </div>
+              <h4>Historial completo</h4>
+              <p>Revisa todos tus estacionamientos, pagos y tiempos de espera.</p>
+            </div>
+            <div className="feature-card">
+              <div className="feature-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </svg>
+              </div>
+              <h4>Notificaciones</h4>
+              <p>Recibe alertas cuando tu carro esté listo o cuando haya novedades.</p>
+            </div>
+            <div className="feature-card">
+              <div className="feature-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                </svg>
+              </div>
+              <h4>Multi-vehículo</h4>
+              <p>Registra todos tus autos y elige cuál necesitas en cada momento.</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── FOOTER ── */}
-      <footer className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 pt-16 pb-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
-            {/* Brand */}
-            <div className="col-span-1 md:col-span-2">
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
-                  <Car className="h-5 w-5 text-white" />
+      {/* B2B MODELS */}
+      <section className="section">
+        <div className="container">
+          <div className="section-head reveal">
+            <span className="eyebrow"><span className="dot"></span> Modelos de negocio</span>
+            <h2>Soluciones <span className="gradient-text">flexibles para tu valet</span></h2>
+            <p>Elige el modelo que mejor se adapte a tu operación. Escalable, modular y 100% digital.</p>
+          </div>
+
+          <div className="b2b-models reveal-stagger">
+            <div className="model-card featured">
+              <div className="model-num">Modelo 1</div>
+              <h3>Valet Parking Completo</h3>
+              <p>Tu negocio usa toda la plataforma: dashboard privado, app para valets, pagos digitales, reportes, facturación y gestión de empleados.</p>
+              <div className="model-features">
+                <div className="model-feature">
+                  <span className="ico">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                  Dashboard privado completo
                 </div>
-                <span className="text-2xl font-black gradient-text">getMyCarro</span>
+                <div className="model-feature">
+                  <span className="ico">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                  App para valets incluida
+                </div>
+                <div className="model-feature">
+                  <span className="ico">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                  Facturación automática
+                </div>
+                <div className="model-feature">
+                  <span className="ico">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                  Reportes y analítica
+                </div>
               </div>
-              <p className="text-slate-600 dark:text-slate-400 mb-4 max-w-sm text-sm leading-relaxed">
-                Soluciones tecnológicas avanzadas para la gestión inteligente de
-                estacionamientos. Desde 2018 transformando la movilidad urbana.
-              </p>
-              <div className="flex space-x-3">
-                {[Twitter, Linkedin, Instagram].map((Icon, i) => (
-                  <a
-                    key={i}
-                    href="#"
-                    className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-blue-600 hover:text-white transition-all duration-300"
-                  >
-                    <Icon className="h-4 w-4" />
-                  </a>
-                ))}
-              </div>
+              <a href="#contact" className="btn btn-primary">Solicitar demo</a>
             </div>
 
-            {/* Products */}
-            <div>
-              <h4 className="font-bold text-slate-900 dark:text-white mb-4 text-sm">Productos</h4>
-              <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
-                {["getMyCarro Basic", "getMyCarro Pro", "getMyCarro Enterprise", "Hardware"].map((item) => (
-                  <li key={item}>
-                    <a href="#productos" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                      {item}
-                    </a>
-                  </li>
-                ))}
+            <div className="model-card">
+              <div className="model-num">Modelo 2</div>
+              <h3>Solo App B2C</h3>
+              <p>Ofrecemos solo la app para tus usuarios. Los valets operan de forma tradicional, pero los clientes disfrutan de la experiencia digital.</p>
+              <div className="model-features">
+                <div className="model-feature">
+                  <span className="ico">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                  App B2C para usuarios
+                </div>
+                <div className="model-feature">
+                  <span className="ico">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                  Pagos digitales
+                </div>
+                <div className="model-feature">
+                  <span className="ico">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                  Notificaciones push
+                </div>
+                <div className="model-feature">
+                  <span className="ico">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                  Historial para clientes
+                </div>
+              </div>
+              <a href="#contact" className="btn btn-secondary">Más información</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FLOW */}
+      <section className="section" id="flow">
+        <div className="container">
+          <div className="section-head reveal">
+            <span className="eyebrow"><span className="dot"></span> Proceso simple</span>
+            <h2><span className="gradient-text">Cómo funciona</span> GetMyCarro</h2>
+            <p>De la llegada al retiro, todo el proceso es digital, rápido y transparente.</p>
+          </div>
+
+          <div className="flow reveal-stagger">
+            <div className="flow-step">
+              <div className="num">1</div>
+              <h4>Registro</h4>
+              <p>El valet registra el vehículo al llegar</p>
+            </div>
+            <div className="flow-step">
+              <div className="num">2</div>
+              <h4>Notificación</h4>
+              <p>El usuario recibe confirmación en su app</p>
+            </div>
+            <div className="flow-step">
+              <div className="num">3</div>
+              <h4>Solicitud</h4>
+              <p>El usuario pide su carro desde la app</p>
+            </div>
+            <div className="flow-step">
+              <div className="num">4</div>
+              <h4>Preparación</h4>
+              <p>El valet prepara el vehículo</p>
+            </div>
+            <div className="flow-step">
+              <div className="num">5</div>
+              <h4>Pago</h4>
+              <p>El usuario paga digitalmente</p>
+            </div>
+            <div className="flow-step">
+              <div className="num">6</div>
+              <h4>Entrega</h4>
+              <p>El valet entrega el carro en la entrada</p>
+            </div>
+            <div className="flow-step">
+              <div className="num">7</div>
+              <h4>Finalización</h4>
+              <p>Se cierra el registro y se genera el recibo</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* BENEFITS */}
+      <section className="section" id="benefits">
+        <div className="container">
+          <div className="section-head reveal">
+            <span className="eyebrow"><span className="dot"></span> Beneficios</span>
+            <h2>Ventajas para <span className="gradient-text">todos los actores</span></h2>
+            <p>GetMyCarro mejora la experiencia de usuarios, negocios y operadores por igual.</p>
+          </div>
+
+          <div className="benefits reveal-stagger">
+            <div className="benefit-block users">
+              <div className="b-ico">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </div>
+              <h3>Para Usuarios</h3>
+              <div className="b-sub">Experiencia premium sin filas</div>
+              <ul>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  Menos tiempo de espera
+                </li>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  Pagos digitales seguros
+                </li>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  Rastreo en tiempo real
+                </li>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  Historial de estacionamientos
+                </li>
               </ul>
             </div>
 
-            {/* Company */}
-            <div>
-              <h4 className="font-bold text-slate-900 dark:text-white mb-4 text-sm">Empresa</h4>
-              <ul className="space-y-2 text-sm text-slate-600 dark:text-slate-400">
-                {["Sobre Nosotros", "Casos de Éxito", "Blog", "Trabaja con Nosotros"].map((item) => (
-                  <li key={item}>
-                    <a href="#" className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-                      {item}
-                    </a>
-                  </li>
-                ))}
+            <div className="benefit-block business">
+              <div className="b-ico">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                  <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+                </svg>
+              </div>
+              <h3>Para Negocios</h3>
+              <div className="b-sub">Control total de tu operación</div>
+              <ul>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  Dashboard privado en tiempo real
+                </li>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  Facturación automática
+                </li>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  Gestión de empleados
+                </li>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  Reportes detallados
+                </li>
+              </ul>
+            </div>
+
+            <div className="benefit-block operators">
+              <div className="b-ico">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M5 17h14M7 17v2a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-2M14 17v2a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-2M3 13l2-7a2 2 0 0 1 2-1.5h10a2 2 0 0 1 2 1.5l2 7M5 13h14" />
+                </svg>
+              </div>
+              <h3>Para Operadores</h3>
+              <div className="b-sub">Gestiona múltiples valets</div>
+              <ul>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  App dedicada para valets
+                </li>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  Control de asistencia
+                </li>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  Comisiones calculadas
+                </li>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  Soporte 24/7
+                </li>
               </ul>
             </div>
           </div>
+        </div>
+      </section>
 
-          <div className="border-t border-slate-200 dark:border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              © {new Date().getFullYear()} getMyCarro. Todos los derechos reservados.
-            </p>
-            <div className="flex gap-6 text-sm text-slate-500 dark:text-slate-400">
-              {["Privacidad", "Términos", "Cookies"].map((item) => (
-                <a key={item} href="#" className="hover:text-blue-600 transition-colors">
-                  {item}
+      {/* DASHBOARD MOCKUP */}
+      <section className="dashboard-section">
+        <div className="container reveal">
+          <div className="section-head">
+            <span className="eyebrow"><span className="dot"></span> Dashboard privado</span>
+            <h2>Tu operación <span className="gradient-text">bajo control</span></h2>
+            <p>Monitoriza vehículos, pagos, valets y ocupación en tiempo real desde cualquier dispositivo.</p>
+          </div>
+
+          <div className="dashboard-frame">
+            <div className="dash-topbar">
+              <div className="dash-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+              <div className="dash-url">app.getmycarro.com/dashboard</div>
+            </div>
+
+            <div className="dash-body">
+              <div className="dash-sidebar">
+                <div className="dash-side-section">Principal</div>
+                <a href="#" className="dash-side-link active">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <rect x="3" y="3" width="7" height="7" />
+                    <rect x="14" y="3" width="7" height="7" />
+                    <rect x="14" y="14" width="7" height="7" />
+                    <rect x="3" y="14" width="7" height="7" />
+                  </svg>
+                  Dashboard
                 </a>
-              ))}
+                <a href="#" className="dash-side-link">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M5 17h14M7 17v2a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-2M14 17v2a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-2M3 13l2-7a2 2 0 0 1 2-1.5h10a2 2 0 0 1 2 1.5l2 7M5 13h14" />
+                  </svg>
+                  Vehículos
+                </a>
+                <a href="#" className="dash-side-link">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                  Empleados
+                </a>
+                <a href="#" className="dash-side-link">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                    <line x1="1" y1="10" x2="23" y2="10" />
+                  </svg>
+                  Pagos
+                </a>
+                <div className="dash-side-section">Configuración</div>
+                <a href="#" className="dash-side-link">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 9a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.51 1 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                  </svg>
+                  Ajustes
+                </a>
+              </div>
+
+              <div className="dash-main">
+                <div className="dash-header-row">
+                  <div>
+                    <h3>Dashboard</h3>
+                    <div className="meta">Vista general de tu operación</div>
+                  </div>
+                  <div className="live-pill">
+                    <span className="dot"></span>
+                    En vivo
+                  </div>
+                </div>
+
+                <div className="dash-kpis">
+                  <div className="kpi">
+                    <div className="kpi-label">
+                      <span className="ico">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                          <path d="M5 17h14M7 17v2a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-2M14 17v2a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-2M3 13l2-7a2 2 0 0 1 2-1.5h10a2 2 0 0 1 2 1.5l2 7M5 13h14" />
+                        </svg>
+                      </span>
+                      Vehículos activos
+                    </div>
+                    <div className="kpi-value">12</div>
+                    <div className="kpi-trend">↓ 2 vs ayer</div>
+                  </div>
+                  <div className="kpi">
+                    <div className="kpi-label">
+                      <span className="ico">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                          <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                          <line x1="1" y1="10" x2="23" y2="10" />
+                        </svg>
+                      </span>
+                      Facturado hoy
+                    </div>
+                    <div className="kpi-value">$1,240</div>
+                    <div className="kpi-trend">↑ 18% vs ayer</div>
+                  </div>
+                  <div className="kpi">
+                    <div className="kpi-label">
+                      <span className="ico">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                          <circle cx="9" cy="7" r="4" />
+                          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                        </svg>
+                      </span>
+                      Valets activos
+                    </div>
+                    <div className="kpi-value">5</div>
+                    <div className="kpi-trend">Estable</div>
+                  </div>
+                  <div className="kpi">
+                    <div className="kpi-label">
+                      <span className="ico">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                          <circle cx="12" cy="12" r="10" />
+                          <polyline points="12 6 12 12 16 14" />
+                        </svg>
+                      </span>
+                      Tiempo promedio
+                    </div>
+                    <div className="kpi-value">8 min</div>
+                    <div className="kpi-trend down">↓ 32% vs mes anterior</div>
+                  </div>
+                </div>
+
+                <div className="dash-bottom">
+                  <div className="dash-card">
+                    <h4>Vehículos recientes</h4>
+                    <div className="table-row head">
+                      <div>Vehículo</div>
+                      <div>Placa</div>
+                      <div>Estado</div>
+                      <div>Acción</div>
+                    </div>
+                    {recentVehicles.map((v, i) => (
+                      <div className="table-row" key={i}>
+                        <div className="car-cell">
+                          <span className="plate">{v.plate}</span>
+                          <span className="name">{v.name}</span>
+                        </div>
+                        <div>{v.plate}</div>
+                        <div>
+                          <span className={`badge ${v.status}`}>{v.statusText}</span>
+                        </div>
+                        <div>
+                          <a href="#" className="btn btn-secondary" style={{ padding: "6px 12px", fontSize: "12px" }}>
+                            Ver
+                          </a>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="dash-card">
+                    <h4>Ocupación por hora</h4>
+                    <div className="chart">
+                      {chartHeights.map((h, i) => (
+                        <div key={i} className={`chart-bar ${i % 2 === 0 ? "alt" : ""}`} style={{ height: `${h}%` }}></div>
+                      ))}
+                    </div>
+                    <div className="chart-labels">
+                      <span>8am</span>
+                      <span>12pm</span>
+                      <span>4pm</span>
+                      <span>8pm</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTORS */}
+      <section className="section">
+        <div className="container">
+          <div className="section-head reveal">
+            <span className="eyebrow"><span className="dot"></span> Industrias</span>
+            <h2>Ideal para <span className="gradient-text">todo tipo de negocio</span></h2>
+            <p>Desde hoteles hasta restaurantes, GetMyCarro se adapta a tu industria.</p>
+          </div>
+
+          <div className="sectors reveal-stagger">
+            {sectors.map((s, i) => (
+              <div className="sector" key={i}>
+                <div className="icon-wrap">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    {s.icon === "hotel" && <path d="M3 21V7l9-4 9 4v14M8 21v-6h8v6M7 7v1M11 7v1M15 7v1" />}
+                    {s.icon === "restaurant" && <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2M7 2v1M21 15V5a2 2 0 0 0-2-2h-3a2 2 0 0 0-2 2v10M21 15a2 2 0 0 1 0 4h-6a2 2 0 0 1 0-4" />}
+                    {s.icon === "hospital" && <path d="M3 21V7l9-4 9 4v14M8 21v-6h8v6M7 7v1M11 7v1M15 7v1M7 11v1M11 11v1M15 11v1M7 15v1M11 15v1M15 15v1" />}
+                    {s.icon === "casino" && <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />}
+                    {s.icon === "shopping" && <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0" />}
+                    {s.icon === "airport" && <path d="M17.8 19.2L16 11l3.5-3.5a2.12 2.12 0 0 0-3-3L9 12l-7.8 3.8a2 2 0 0 1 .8 3l4.2-1.1 6.8 5.3a2 2 0 0 0 3-1.8z" />}
+                    {s.icon === "event" && <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />}
+                  </svg>
+                </div>
+                <strong>{s.name}</strong>
+                <small>{s.desc}</small>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* TESTIMONIAL */}
+      <section className="testimonial-section">
+        <div className="container">
+          <div className="testimonial-card reveal">
+            <p className="testimonial-quote">
+              "Desde que implementamos GetMyCarro, la satisfacción de nuestros huéspedes ha subido notablemente. Ya no hay filas en el valet y todo es transparente. Sin duda, la mejor inversión para nuestro hotel."
+            </p>
+            <div className="testimonial-author">
+              <div className="ta-avatar">MR</div>
+              <div>
+                <div className="ta-name">María Rodríguez</div>
+                <div className="ta-role">Gerente General, Hotel Premium</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA FINAL */}
+      <section className="cta-final" id="contact">
+        <div className="container">
+          <div className="cta-card reveal">
+            <div className="eyebrow"><span className="dot"></span> Comienza hoy</div>
+            <h2>Transforma tu valet parking con GetMyCarro</h2>
+            <p>Solicita una demo gratuita y descubre cómo nuestra plataforma puede llevar tu negocio al siguiente nivel.</p>
+            <div className="cta-buttons">
+              <a href="#" className="btn btn-primary">
+                Solicitar demo gratuita
+                <svg className="btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M5 12h14M13 5l7 7-7 7" />
+                </svg>
+              </a>
+              <a href="#" className="btn btn-secondary">Habla con ventas</a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FOOTER */}
+      <footer>
+        <div className="container">
+          <div className="foot-main">
+            <div>
+              <a href="#top" className="logo" aria-label="GetMyCarro">
+                <span className="logo-mark">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 17h14M7 17v2a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-2M14 17v2a1 1 0 0 0 1 1h1a1 1 0 0 0 1-1v-2M3 13l2-7a2 2 0 0 1 2-1.5h10a2 2 0 0 1 2 1.5l2 7M5 13h14M7.5 9.5h9" />
+                  </svg>
+                </span>
+                <span className="logo-text">GetMy<span>Carro</span></span>
+              </a>
+              <p>La plataforma de valet parking más avanzada. Conectamos usuarios, negocios y operadores en una sola aplicación inteligente.</p>
+            </div>
+            <div className="foot-col">
+              <h5>Producto</h5>
+              <ul>
+                <li><a href="#b2c">App B2C</a></li>
+                <li><a href="#b2b">Soluciones B2B</a></li>
+                <li><a href="#flow">Cómo funciona</a></li>
+                <li><a href="#">Precios</a></li>
+              </ul>
+            </div>
+            <div className="foot-col">
+              <h5>Empresa</h5>
+              <ul>
+                <li><a href="#">Sobre nosotros</a></li>
+                <li><a href="#">Blog</a></li>
+                <li><a href="#">Carreras</a></li>
+                <li><a href="#">Contacto</a></li>
+              </ul>
+            </div>
+            <div className="foot-col">
+              <h5>Legal</h5>
+              <ul>
+                <li><a href="#">Términos y condiciones</a></li>
+                <li><a href="#">Política de privacidad</a></li>
+                <li><a href="#">Cookies</a></li>
+              </ul>
+            </div>
+          </div>
+          <div className="foot-bottom">
+            <span>© 2026 GetMyCarro. Todos los derechos reservados.</span>
+            <div className="foot-social">
+              <a href="#" aria-label="Twitter">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                </svg>
+              </a>
+              <a href="#" aria-label="Instagram">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+                  <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                  <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+                </svg>
+              </a>
+              <a href="#" aria-label="LinkedIn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
+                  <rect x="2" y="9" width="4" height="12" />
+                  <circle cx="4" cy="4" r="2" />
+                </svg>
+              </a>
             </div>
           </div>
         </div>
       </footer>
-    </div>
-  )
+    </>
+  );
 }

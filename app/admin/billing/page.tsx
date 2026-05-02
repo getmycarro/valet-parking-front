@@ -71,7 +71,7 @@ export default function AdminBillingPage() {
       )}
 
       {/* Payment Counters */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -79,10 +79,10 @@ export default function AdminBillingPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-2xl font-bold text-foreground">
               {paymentsMeta.pending}
             </div>
-            <div className="text-lg font-semibold text-yellow-600 mt-2">
+            <div className="text-lg font-semibold text-yellow-600 dark:text-yellow-400 mt-2">
               ${paymentsMeta.pendingAmountUSD}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -98,10 +98,10 @@ export default function AdminBillingPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-2xl font-bold text-foreground">
               {paymentsMeta.completed}
             </div>
-            <div className="text-lg font-semibold text-green-600 mt-2">
+            <div className="text-lg font-semibold text-green-600 dark:text-green-400 mt-2">
               ${paymentsMeta.completedAmountUSD}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -117,10 +117,10 @@ export default function AdminBillingPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-2xl font-bold text-foreground">
               {paymentsMeta.cancelled}
             </div>
-            <div className="text-lg font-semibold text-red-600 mt-2">
+            <div className="text-lg font-semibold text-red-600 dark:text-red-400 mt-2">
               ${paymentsMeta.cancelledAmountUSD}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -136,7 +136,7 @@ export default function AdminBillingPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-2xl font-bold text-foreground">
               {paymentsMeta.all}
             </div>
             <p className="text-xs text-muted-foreground mt-1">

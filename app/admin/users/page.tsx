@@ -29,10 +29,10 @@ const ROLE_FILTER_OPTIONS = [
 ];
 
 const roleBadgeColors: Record<string, string> = {
-  SUPER_ADMIN: "bg-red-100 text-red-800",
-  ADMIN: "bg-blue-100 text-blue-800",
-  MANAGER: "bg-amber-100 text-amber-800",
-  ATTENDANT: "bg-purple-100 text-purple-800",
+  SUPER_ADMIN: "bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-200",
+  ADMIN: "bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-200",
+  MANAGER: "bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-200",
+  ATTENDANT: "bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-200",
 };
 
 type FormValues = {
@@ -155,8 +155,8 @@ export default function UsersPage() {
         <span
           className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
             u.isActive
-              ? "bg-green-100 text-green-800"
-              : "bg-red-100 text-red-800"
+              ? "bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-200"
+              : "bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-200"
           }`}
         >
           {u.isActive ? "Active" : "Inactive"}

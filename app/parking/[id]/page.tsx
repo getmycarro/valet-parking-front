@@ -47,30 +47,30 @@ const statusConfig: Record<
 > = {
   red: {
     dot: "bg-red-500",
-    bg: "bg-red-50",
-    text: "text-red-800",
-    border: "border-red-200",
+    bg: "bg-red-50 dark:bg-red-950",
+    text: "text-red-800 dark:text-red-200",
+    border: "border-red-200 dark:border-red-800",
     label: "Sin pago",
   },
   yellow: {
     dot: "bg-yellow-500",
-    bg: "bg-yellow-50",
-    text: "text-yellow-800",
-    border: "border-yellow-200",
+    bg: "bg-yellow-50 dark:bg-yellow-950",
+    text: "text-yellow-800 dark:text-yellow-200",
+    border: "border-yellow-200 dark:border-yellow-800",
     label: "Pagado — pendiente de entrega",
   },
   green: {
     dot: "bg-green-500",
-    bg: "bg-green-50",
-    text: "text-green-800",
-    border: "border-green-200",
+    bg: "bg-green-50 dark:bg-green-950",
+    text: "text-green-800 dark:text-green-200",
+    border: "border-green-200 dark:border-green-800",
     label: "Entregado",
   },
   blue: {
     dot: "bg-blue-500",
-    bg: "bg-blue-50",
-    text: "text-blue-800",
-    border: "border-blue-200",
+    bg: "bg-blue-50 dark:bg-blue-950",
+    text: "text-blue-800 dark:text-blue-200",
+    border: "border-blue-200 dark:border-blue-800",
     label: "Pago en revisión",
   },
 };
@@ -79,12 +79,12 @@ const payStatusConfig: Record<
   string,
   { bg: string; text: string; border: string; label: string }
 > = {
-  PENDING:   { bg: "bg-yellow-50", text: "text-yellow-700", border: "border-yellow-200", label: "Pendiente" },
-  pending:   { bg: "bg-yellow-50", text: "text-yellow-700", border: "border-yellow-200", label: "Pendiente" },
-  RECEIVED:  { bg: "bg-green-50",  text: "text-green-700",  border: "border-green-200",  label: "Recibido" },
-  received:  { bg: "bg-green-50",  text: "text-green-700",  border: "border-green-200",  label: "Recibido" },
-  CANCELLED: { bg: "bg-red-50",    text: "text-red-700",    border: "border-red-200",    label: "Cancelado" },
-  cancelled: { bg: "bg-red-50",    text: "text-red-700",    border: "border-red-200",    label: "Cancelado" },
+  PENDING:   { bg: "bg-yellow-50 dark:bg-yellow-950", text: "text-yellow-700 dark:text-yellow-300", border: "border-yellow-200 dark:border-yellow-800", label: "Pendiente" },
+  pending:   { bg: "bg-yellow-50 dark:bg-yellow-950", text: "text-yellow-700 dark:text-yellow-300", border: "border-yellow-200 dark:border-yellow-800", label: "Pendiente" },
+  RECEIVED:  { bg: "bg-green-50 dark:bg-green-950",   text: "text-green-700 dark:text-green-300",   border: "border-green-200 dark:border-green-800",   label: "Recibido" },
+  received:  { bg: "bg-green-50 dark:bg-green-950",   text: "text-green-700 dark:text-green-300",   border: "border-green-200 dark:border-green-800",   label: "Recibido" },
+  CANCELLED: { bg: "bg-red-50 dark:bg-red-950",       text: "text-red-700 dark:text-red-300",       border: "border-red-200 dark:border-red-800",       label: "Cancelado" },
+  cancelled: { bg: "bg-red-50 dark:bg-red-950",       text: "text-red-700 dark:text-red-300",       border: "border-red-200 dark:border-red-800",       label: "Cancelado" },
 };
 
 // ─── inner content (shared between layouts) ──────────────────────────────────

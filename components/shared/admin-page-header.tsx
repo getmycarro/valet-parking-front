@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { LogOut, Settings, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,22 +20,30 @@ type Props = {
   subtitle?: string;
   userName: string;
   onLogout: () => void;
+  actions?: ReactNode;
 };
 
-export function AdminPageHeader({ title, subtitle, userName, onLogout }: Props) {
+export function AdminPageHeader({ title, subtitle, userName, onLogout, actions }: Props) {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
     <>
-      <header className="sticky top-0 z-30 bg-card/80 backdrop-blur-sm border-b border-border">
-        <div className="flex items-center justify-between px-6 py-4">
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">{title}</h1>
+      <header className="sticky top-0 z-30 bg-card border-b border-border">
+        <div className="flex items-center gap-4 px-6 py-3">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-base font-semibold text-foreground leading-tight truncate">
+              {title}
+            </h1>
             {subtitle ? (
-              <p className="text-sm text-muted-foreground">{subtitle}</p>
+              <p className="text-xs text-muted-foreground leading-tight">{subtitle}</p>
             ) : null}
           </div>
-          <div className="flex items-center gap-4">
+
+          {actions && (
+            <div className="flex items-center gap-3 shrink-0">{actions}</div>
+          )}
+
+          <div className="flex items-center gap-3 shrink-0">
             <NotificationBell />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

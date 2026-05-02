@@ -1,15 +1,26 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Inter } from "next/font/google"
+import { Inter, Manrope } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 import { Providers } from "@/components/providers"
 
-const inter = Inter({ subsets: ["latin"] })
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-body",
+  display: "swap",
+})
+
+const manrope = Manrope({
+  subsets: ["latin"],
+  variable: "--font-display",
+  weight: ["500", "600", "700", "800"],
+  display: "swap",
+})
 
 export const metadata: Metadata = {
-  title: "Valet Parking - Management System",
-  description: "Valet Parking Management System",
+  title: "GetMyCarro — El valet parking, finalmente inteligente.",
+  description: "GetMyCarro conecta usuarios, negocios y operadores de valet parking en una sola plataforma digital. Menos espera. Más control. Una experiencia premium.",
   generator: "v0.app",
   icons: {
     icon: [
@@ -36,8 +47,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} antialiased`}>
+    <html lang="es" suppressHydrationWarning>
+      <body className={`${inter.variable} ${manrope.variable} antialiased`}>
         <Providers>{children}</Providers>
         <Analytics />
       </body>
