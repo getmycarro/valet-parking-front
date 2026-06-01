@@ -37,10 +37,12 @@ export default function AdminApp() {
   const [active, setActive]           = useState('dashboard');
   const [registerOpen, setRegisterOpen] = useState(false);
   const [toast, setToast]             = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate                      = useNavigate();
   const location                      = useLocation();
 
   const handleNav = (section) => {
+    setSidebarOpen(false);
     setActive(section);
     if (location.pathname.startsWith('/admin/ticket')) {
       navigate('/admin');
@@ -113,6 +115,8 @@ export default function AdminApp() {
         active={active} onNav={handleNav}
         role={role} user={user}
         onLogout={handleLogout}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
       <main className="shell-main">
         <Topbar
@@ -121,12 +125,16 @@ export default function AdminApp() {
           onToggleTheme={() => {}}
           user={user}
           onNavNotifications={() => handleNav('notifications')}
+          onMenuToggle={() => setSidebarOpen(v => !v)}
         />
         <Routes>
           <Route path="ticket/:id" element={<TicketDetailScreen user={user} />} />
           <Route path="*" element={body} />
         </Routes>
       </main>
+      {sidebarOpen && (
+        <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
+      )}
       <RegisterVehicleModal
         open={registerOpen}
         onClose={() => setRegisterOpen(false)}

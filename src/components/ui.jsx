@@ -29,7 +29,7 @@ import api from '../lib/api.js';
 
 /* Admin UI kit — composite components */
 
-function Sidebar({ active, onNav, role, user, onLogout }) {
+function Sidebar({ active, onNav, role, user, onLogout, isOpen }) {
   const groups = [
     {
       label: "Gestión",
@@ -57,7 +57,7 @@ function Sidebar({ active, onNav, role, user, onLogout }) {
   const roleLabels = { SUPER_ADMIN: "Super Admin", ADMIN: "Administrador", MANAGER: "Gerente", ATTENDANT: "Valet" };
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${isOpen ? ' sidebar--open' : ''}`}>
       <div className="sidebar-logo">
         <Logo size="sm" />
       </div>
@@ -96,7 +96,7 @@ function Sidebar({ active, onNav, role, user, onLogout }) {
   );
 }
 
-function Topbar({ title, onToggleTheme, isDark, user, onNavNotifications }) {
+function Topbar({ title, onToggleTheme, isDark, user, onNavNotifications, onMenuToggle }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -148,6 +148,9 @@ function Topbar({ title, onToggleTheme, isDark, user, onNavNotifications }) {
 
   return (
     <header className="topbar">
+      <button className="topbar-menu-btn" onClick={onMenuToggle} aria-label="Menú">
+        <Icon name="menu" size={20} />
+      </button>
       <div className="breadcrumb">
         <span className="crumb-current">{title}</span>
       </div>
@@ -187,7 +190,7 @@ function Topbar({ title, onToggleTheme, isDark, user, onNavNotifications }) {
 
           {notifOpen && (
             <div style={{
-              position: 'absolute', top: '48px', right: 0, width: '340px',
+              position: 'absolute', top: '48px', right: 0, width: 'min(340px, calc(100vw - 28px))',
               background: 'var(--admin-elevated)', border: '1px solid rgba(255,255,255,0.08)',
               borderRadius: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
               zIndex: 1000, overflow: 'hidden',

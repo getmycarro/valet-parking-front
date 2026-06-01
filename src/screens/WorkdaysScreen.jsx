@@ -193,7 +193,7 @@ export default function WorkdaysScreen({ user }) {
             )}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+          <div className="kpi-grid-3">
             <KpiCard icon="car"        tone="blue"  label="Vehículos en lote"   value={stats.inside} sub="Actualmente en el lote" />
             <KpiCard icon="arrowRight" tone="green" label="Vehículos salidos"   value={stats.exited} sub="Salidas en esta jornada" />
             <KpiCard icon="clock"      tone="amber" label="Total en jornada"    value={stats.total}  sub="Registros en la jornada" />
@@ -251,41 +251,43 @@ export default function WorkdaysScreen({ user }) {
               <p>Sin vehículos en esta jornada.</p>
             </div>
           ) : (
-            <table className="tbl">
-              <thead>
-                <tr>
-                  <th>N° Ticket</th>
-                  <th>Placa</th>
-                  <th>Vehículo</th>
-                  <th>Estado</th>
-                  <th>Ingreso</th>
-                </tr>
-              </thead>
-              <tbody>
-                {wdVehicles.map(v => {
-                  const STATUS_LABEL = { in_lot: 'En lote', active: 'Sin pago', in_review: 'En revisión', pending_delivery: 'Por entregar', completed: 'Entregado', FREE: 'Entregado', PAID: 'Por entregar', UNPAID: 'Sin pago', PAYMENT_UNDER_REVIEW: 'En revisión' };
-                  const STATUS_TONE  = { in_lot: 'blue', active: 'red', in_review: 'amber', pending_delivery: 'amber', completed: 'green', FREE: 'green', PAID: 'amber', UNPAID: 'red', PAYMENT_UNDER_REVIEW: 'amber' };
-                  const statusKey = v.status || v.currentStatus;
-                  return (
-                    <tr key={v.id}>
-                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--admin-text-2)' }}>
-                        {v.ticketNumber ? `#${String(v.ticketNumber).padStart(3, '0')}` : '—'}
-                      </td>
-                      <td>
-                        <Link to={`/admin/ticket/${v.id}`} style={{ color: 'var(--gold)', fontWeight: 600, fontFamily: 'var(--font-mono)', fontSize: 13, textDecoration: 'none' }}>
-                          {v.plate}
-                        </Link>
-                      </td>
-                      <td style={{ color: 'var(--admin-text-2)', fontSize: 13 }}>{v.brand} {v.model}</td>
-                      <td><Badge tone={STATUS_TONE[statusKey] || 'slate'}>{STATUS_LABEL[statusKey] || statusKey || '—'}</Badge></td>
-                      <td style={{ color: 'var(--admin-text-3)', fontSize: 12 }}>
-                        {v.checkInAt ? new Date(v.checkInAt).toLocaleString('es-VE') : '—'}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <div className="tbl-wrap">
+              <table className="tbl">
+                <thead>
+                  <tr>
+                    <th>N° Ticket</th>
+                    <th>Placa</th>
+                    <th>Vehículo</th>
+                    <th>Estado</th>
+                    <th>Ingreso</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {wdVehicles.map(v => {
+                    const STATUS_LABEL = { in_lot: 'En lote', active: 'Sin pago', in_review: 'En revisión', pending_delivery: 'Por entregar', completed: 'Entregado', FREE: 'Entregado', PAID: 'Por entregar', UNPAID: 'Sin pago', PAYMENT_UNDER_REVIEW: 'En revisión' };
+                    const STATUS_TONE  = { in_lot: 'blue', active: 'red', in_review: 'amber', pending_delivery: 'amber', completed: 'green', FREE: 'green', PAID: 'amber', UNPAID: 'red', PAYMENT_UNDER_REVIEW: 'amber' };
+                    const statusKey = v.status || v.currentStatus;
+                    return (
+                      <tr key={v.id}>
+                        <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--admin-text-2)' }}>
+                          {v.ticketNumber ? `#${String(v.ticketNumber).padStart(3, '0')}` : '—'}
+                        </td>
+                        <td>
+                          <Link to={`/admin/ticket/${v.id}`} style={{ color: 'var(--gold)', fontWeight: 600, fontFamily: 'var(--font-mono)', fontSize: 13, textDecoration: 'none' }}>
+                            {v.plate}
+                          </Link>
+                        </td>
+                        <td style={{ color: 'var(--admin-text-2)', fontSize: 13 }}>{v.brand} {v.model}</td>
+                        <td><Badge tone={STATUS_TONE[statusKey] || 'slate'}>{STATUS_LABEL[statusKey] || statusKey || '—'}</Badge></td>
+                        <td style={{ color: 'var(--admin-text-3)', fontSize: 12 }}>
+                          {v.checkInAt ? new Date(v.checkInAt).toLocaleString('es-VE') : '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       ) : (
@@ -300,64 +302,66 @@ export default function WorkdaysScreen({ user }) {
               <p>Cargando jornadas…</p>
             </div>
           ) : (
-            <table className="tbl">
-              <thead>
-                <tr>
-                  <th>Fecha apertura</th>
-                  <th>Fecha cierre</th>
-                  <th>Total vehículos</th>
-                  <th>Estado</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {workdays.length === 0 && (
+            <div className="tbl-wrap">
+              <table className="tbl">
+                <thead>
                   <tr>
-                    <td colSpan="5">
-                      <div className="empty" style={{ padding: 40 }}>
-                        <Icon name="clock" size={42} className="ico" />
-                        <p>No hay jornadas registradas.</p>
-                      </div>
-                    </td>
+                    <th>Fecha apertura</th>
+                    <th>Fecha cierre</th>
+                    <th>Total vehículos</th>
+                    <th>Estado</th>
+                    <th></th>
                   </tr>
-                )}
-                {workdays.map(w => {
-                  const statusTone  = w.status === 'ACTIVE' ? 'green' : 'slate';
-                  const statusLabel = w.status === 'ACTIVE' ? 'Activa'  : 'Cerrada';
-                  const vehicleCount = w._count?.parkingRecords ?? w.vehicleCount ?? '—';
-                  return (
-                    <tr key={w.id}>
-                      <td style={{ color: 'var(--admin-text-1)', fontSize: 13 }}>
-                        {formatDate(w.openedAt)}&nbsp;
-                        <span style={{ color: 'var(--admin-text-3)' }}>{formatTime(w.openedAt)}</span>
-                      </td>
-                      <td style={{ color: 'var(--admin-text-2)', fontSize: 13 }}>
-                        {w.closedAt ? (
-                          <>
-                            {formatDate(w.closedAt)}&nbsp;
-                            <span style={{ color: 'var(--admin-text-3)' }}>{formatTime(w.closedAt)}</span>
-                          </>
-                        ) : '—'}
-                      </td>
-                      <td style={{ color: 'var(--admin-text-1)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>
-                        {vehicleCount}
-                      </td>
-                      <td>
-                        <Badge tone={statusTone}>{statusLabel}</Badge>
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <button
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => { setSelectedWorkday(w); fetchWorkdayVehicles(w.id); }}
-                        >
-                          Ver vehículos
-                        </button>
+                </thead>
+                <tbody>
+                  {workdays.length === 0 && (
+                    <tr>
+                      <td colSpan="5">
+                        <div className="empty" style={{ padding: 40 }}>
+                          <Icon name="clock" size={42} className="ico" />
+                          <p>No hay jornadas registradas.</p>
+                        </div>
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  )}
+                  {workdays.map(w => {
+                    const statusTone  = w.status === 'ACTIVE' ? 'green' : 'slate';
+                    const statusLabel = w.status === 'ACTIVE' ? 'Activa'  : 'Cerrada';
+                    const vehicleCount = w._count?.parkingRecords ?? w.vehicleCount ?? '—';
+                    return (
+                      <tr key={w.id}>
+                        <td style={{ color: 'var(--admin-text-1)', fontSize: 13 }}>
+                          {formatDate(w.openedAt)}&nbsp;
+                          <span style={{ color: 'var(--admin-text-3)' }}>{formatTime(w.openedAt)}</span>
+                        </td>
+                        <td style={{ color: 'var(--admin-text-2)', fontSize: 13 }}>
+                          {w.closedAt ? (
+                            <>
+                              {formatDate(w.closedAt)}&nbsp;
+                              <span style={{ color: 'var(--admin-text-3)' }}>{formatTime(w.closedAt)}</span>
+                            </>
+                          ) : '—'}
+                        </td>
+                        <td style={{ color: 'var(--admin-text-1)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>
+                          {vehicleCount}
+                        </td>
+                        <td>
+                          <Badge tone={statusTone}>{statusLabel}</Badge>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => { setSelectedWorkday(w); fetchWorkdayVehicles(w.id); }}
+                          >
+                            Ver vehículos
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}
@@ -397,10 +401,7 @@ export default function WorkdaysScreen({ user }) {
             {closeError}
           </div>
         )}
-        <div style={{
-          marginTop: 16,
-          display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10,
-        }}>
+        <div className="kpi-grid-3" style={{ marginTop: 16, gap: 10 }}>
           <div style={{ background: 'var(--slate-800)', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
             <div style={{ color: 'var(--admin-text-1)', fontWeight: 700, fontSize: 20, fontFamily: 'var(--font-display)' }}>{stats.inside}</div>
             <div style={{ color: 'var(--admin-text-3)', fontSize: 11, marginTop: 2 }}>En lote</div>

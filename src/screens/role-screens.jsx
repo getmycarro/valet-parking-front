@@ -51,7 +51,7 @@ function CompaniesScreen() {
         actions={<button className="btn btn-primary" onClick={() => setAdding(true)}><Icon name="plus" size={14} /> Nueva compañía</button>}
       />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+      <div className="kpi-grid-4">
         <KpiCard icon="building" tone="blue"   label="Compañías activas"    value={activeCount}                         sub={`${companies.length} en total`} />
         <KpiCard icon="dollar"   tone="amber"  label="Ingresos del período" value={`$${totalRevenue.toLocaleString()}`} sub="Facturación total" />
         <KpiCard icon="file"     tone="indigo" label="Plan Flat Rate"       value={flatRate}                            sub="compañías en este plan" />
@@ -70,38 +70,40 @@ function CompaniesScreen() {
             <p>Cargando compañías…</p>
           </div>
         ) : (
-          <table className="tbl">
-            <thead><tr><th>Compañía</th><th>RIF</th><th>Plan</th><th>Estado</th><th></th></tr></thead>
-            <tbody>
-              {companies.length === 0 && (
-                <tr><td colSpan="5"><div className="empty" style={{ padding: 40 }}><Icon name="building" size={42} className="ico" /><p>No hay compañías registradas.</p></div></td></tr>
-              )}
-              {companies.map(c => {
-                const planType = c.plan?.type || c.planType || '—';
-                const statusKey = c.status || 'active';
-                return (
-                  <tr key={c.id}>
-                    <td>
-                      <div className="car-row">
-                        <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, #60A5FA, #6366F1)', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 700, fontSize: 13, fontFamily: 'var(--font-display)' }}>
-                          {(c.name || '?')[0]}
+          <div className="tbl-wrap">
+            <table className="tbl">
+              <thead><tr><th>Compañía</th><th>RIF</th><th>Plan</th><th>Estado</th><th></th></tr></thead>
+              <tbody>
+                {companies.length === 0 && (
+                  <tr><td colSpan="5"><div className="empty" style={{ padding: 40 }}><Icon name="building" size={42} className="ico" /><p>No hay compañías registradas.</p></div></td></tr>
+                )}
+                {companies.map(c => {
+                  const planType = c.plan?.type || c.planType || '—';
+                  const statusKey = c.status || 'active';
+                  return (
+                    <tr key={c.id}>
+                      <td>
+                        <div className="car-row">
+                          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, #60A5FA, #6366F1)', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 700, fontSize: 13, fontFamily: 'var(--font-display)' }}>
+                            {(c.name || '?')[0]}
+                          </div>
+                          <span className="name">{c.name}</span>
                         </div>
-                        <span className="name">{c.name}</span>
-                      </div>
-                    </td>
-                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{c.rif || c.code || '—'}</td>
-                    <td><Badge tone={PLAN_TONE[planType] || 'slate'}>{planType}</Badge></td>
-                    <td>
-                      <Badge tone={STATUS_TONE[statusKey] || 'slate'}>{STATUS_LABEL[statusKey] || statusKey}</Badge>
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <button className="btn btn-ghost" style={{ padding: '6px 10px' }}><Icon name="edit" size={14} /></button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      </td>
+                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{c.rif || c.code || '—'}</td>
+                      <td><Badge tone={PLAN_TONE[planType] || 'slate'}>{planType}</Badge></td>
+                      <td>
+                        <Badge tone={STATUS_TONE[statusKey] || 'slate'}>{STATUS_LABEL[statusKey] || statusKey}</Badge>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <button className="btn btn-ghost" style={{ padding: '6px 10px' }}><Icon name="edit" size={14} /></button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
@@ -114,7 +116,7 @@ function CompaniesScreen() {
           <button className="btn btn-primary" onClick={() => setAdding(false)}>Crear compañía</button>
         </>}
       >
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <div className="grid-2">
           <div className="field"><label>Nombre</label><input placeholder="Hotel Premium" /></div>
           <div className="field"><label>RIF</label><input placeholder="J-12345678-9" /></div>
           <div className="field" style={{ gridColumn: '1 / -1' }}><label>Plan</label>
@@ -191,37 +193,39 @@ function UsersScreen() {
             <p>Cargando usuarios…</p>
           </div>
         ) : (
-          <table className="tbl">
-            <thead><tr><th>Usuario</th><th>Email</th><th>Compañía</th><th>Rol</th><th>Creado</th><th></th></tr></thead>
-            <tbody>
-              {filtered.length === 0 && (
-                <tr><td colSpan="6"><div className="empty" style={{ padding: 40 }}><Icon name="users" size={42} className="ico" /><p>{q ? 'Sin resultados.' : 'No hay usuarios registrados.'}</p></div></td></tr>
-              )}
-              {filtered.map(u => (
-                <tr key={u.id || u.email}>
-                  <td>
-                    <div className="car-row">
-                      <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg, #60A5FA, #6366F1)', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 700, fontSize: 12 }}>
-                        {(u.name || '?').split(' ').slice(0,2).map(w => w[0]).join('')}
+          <div className="tbl-wrap">
+            <table className="tbl">
+              <thead><tr><th>Usuario</th><th>Email</th><th>Compañía</th><th>Rol</th><th>Creado</th><th></th></tr></thead>
+              <tbody>
+                {filtered.length === 0 && (
+                  <tr><td colSpan="6"><div className="empty" style={{ padding: 40 }}><Icon name="users" size={42} className="ico" /><p>{q ? 'Sin resultados.' : 'No hay usuarios registrados.'}</p></div></td></tr>
+                )}
+                {filtered.map(u => (
+                  <tr key={u.id || u.email}>
+                    <td>
+                      <div className="car-row">
+                        <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg, #60A5FA, #6366F1)', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 700, fontSize: 12 }}>
+                          {(u.name || '?').split(' ').slice(0,2).map(w => w[0]).join('')}
+                        </div>
+                        <span className="name">{u.name || u.email}</span>
                       </div>
-                      <span className="name">{u.name || u.email}</span>
-                    </div>
-                  </td>
-                  <td>{u.email}</td>
-                  <td>{u.companyUsers?.[0]?.company?.name || u.company?.name || '—'}</td>
-                  <td>
-                    <Badge tone={ROLE_TONE[u.role] || 'slate'}>{ROLE_LABEL[u.role] || u.role}</Badge>
-                  </td>
-                  <td style={{ color: 'var(--slate-400)', fontSize: 13 }}>
-                    {u.createdAt ? new Date(u.createdAt).toLocaleDateString('es-VE') : '—'}
-                  </td>
-                  <td style={{ textAlign: 'right' }}>
-                    <button className="btn btn-ghost" style={{ padding: '6px 10px' }}><Icon name="edit" size={14} /></button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    </td>
+                    <td>{u.email}</td>
+                    <td>{u.companyUsers?.[0]?.company?.name || u.company?.name || '—'}</td>
+                    <td>
+                      <Badge tone={ROLE_TONE[u.role] || 'slate'}>{ROLE_LABEL[u.role] || u.role}</Badge>
+                    </td>
+                    <td style={{ color: 'var(--slate-400)', fontSize: 13 }}>
+                      {u.createdAt ? new Date(u.createdAt).toLocaleDateString('es-VE') : '—'}
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <button className="btn btn-ghost" style={{ padding: '6px 10px' }}><Icon name="edit" size={14} /></button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
@@ -391,7 +395,7 @@ function AttendantDashboard({ user, onLogout }) {
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+        <div className="kpi-grid-3">
           <KpiCard icon="car"    tone="blue"  label="En lote ahora"       value={counts.active} sub="Vehículos sin entregar" />
           <KpiCard icon="clock"  tone="amber" label="Listos para entregar" value={counts.ready}  sub="Vehículos pagados" />
           <KpiCard icon="dollar" tone="red"   label="Por cobrar"           value={counts.unpaid} sub="Sin pago confirmado" />
@@ -422,23 +426,25 @@ function AttendantDashboard({ user, onLogout }) {
               <p>Cargando vehículos…</p>
             </div>
           ) : (
-            <table className="tbl">
-              <thead><tr><th>Vehículo</th><th>Valet</th><th>Ingreso</th><th>Estado</th><th></th></tr></thead>
-              <tbody>
-                {vehicles.map(v => (
-                  <VehicleRow
-                    key={v.id}
-                    v={v}
-                    owner={{ name: v.ownerName, cedula: v.ownerIdNumber }}
-                    onAction={handleAction}
-                    disabled={actionLoading === v.id}
-                  />
-                ))}
-                {vehicles.length === 0 && (
-                  <tr><td colSpan="5"><div className="empty" style={{ padding: 50 }}><Icon name="car" size={42} className="ico" /><p>No hay vehículos en esta vista.</p></div></td></tr>
-                )}
-              </tbody>
-            </table>
+            <div className="tbl-wrap">
+              <table className="tbl">
+                <thead><tr><th>Vehículo</th><th>Valet</th><th>Ingreso</th><th>Estado</th><th></th></tr></thead>
+                <tbody>
+                  {vehicles.map(v => (
+                    <VehicleRow
+                      key={v.id}
+                      v={v}
+                      owner={{ name: v.ownerName, cedula: v.ownerIdNumber }}
+                      onAction={handleAction}
+                      disabled={actionLoading === v.id}
+                    />
+                  ))}
+                  {vehicles.length === 0 && (
+                    <tr><td colSpan="5"><div className="empty" style={{ padding: 50 }}><Icon name="car" size={42} className="ico" /><p>No hay vehículos en esta vista.</p></div></td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           )}
           {pageMeta.totalPages > 1 && (
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, padding: '14px 0', borderTop: '1px solid var(--slate-800)' }}>

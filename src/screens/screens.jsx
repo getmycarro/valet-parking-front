@@ -163,29 +163,31 @@ function DashboardScreen({ onRegister, onAction }) {
         <div className="glass empty" style={{ padding: 60 }}><Icon name="loader" size={32} className="ico" style={{ animation: 'spin 1s linear infinite' }} /><p>Cargando datos…</p></div>
       ) : (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+          <div className="kpi-grid-4">
             <KpiCard icon="car"    tone="blue"   label="Vehículos activos"  value={inLot}         sub="Estado actual del lote" />
             <KpiCard icon="dollar" tone="amber"  label="Cobros hoy"         value={cobradosHoy}   sub="Pagos registrados hoy" />
             <KpiCard icon="users"  tone="indigo" label="Total registros"    value={vehicles.length} sub="En este período" />
             <KpiCard icon="check"  tone="cyan"   label="Entregados"         value={vehicles.filter(v => v.status === 'delivered').length} sub="Vehículos con checkout" />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 16 }}>
+          <div className="dashboard-split">
             <div className="glass">
               <SectionHead title="Vehículos recientes" meta="Últimas entradas" actions={<button className="btn btn-ghost"><Icon name="filter" size={14} /> Filtrar</button>} />
-              <table className="tbl">
-                <thead>
-                  <tr><th>Vehículo</th><th>Valet</th><th>Ingreso</th><th>Estado</th><th></th></tr>
-                </thead>
-                <tbody>
-                  {recent.length === 0 && (
-                    <tr><td colSpan="5"><div className="empty" style={{ padding: 40 }}><p>No hay registros recientes.</p></div></td></tr>
-                  )}
-                  {recent.map(v => (
-                    <VehicleRow key={v.id} v={v} owner={{ name: v.ownerName, cedula: v.ownerIdNumber }} onAction={onAction} />
-                  ))}
-                </tbody>
-              </table>
+              <div className="tbl-wrap">
+                <table className="tbl">
+                  <thead>
+                    <tr><th>Vehículo</th><th>Valet</th><th>Ingreso</th><th>Estado</th><th></th></tr>
+                  </thead>
+                  <tbody>
+                    {recent.length === 0 && (
+                      <tr><td colSpan="5"><div className="empty" style={{ padding: 40 }}><p>No hay registros recientes.</p></div></td></tr>
+                    )}
+                    {recent.map(v => (
+                      <VehicleRow key={v.id} v={v} owner={{ name: v.ownerName, cedula: v.ownerIdNumber }} onAction={onAction} />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             <div className="glass">
@@ -417,26 +419,28 @@ function VehiclesScreen({ onRegister, user }) {
             <p>Cargando vehículos…</p>
           </div>
         ) : (
-          <table className="tbl">
-            <thead>
-              <tr><th>Vehículo</th><th>Valet</th><th>Ingreso</th><th>Estado</th><th></th></tr>
-            </thead>
-            <tbody>
-              {vehicles.map(v => (
-                <VehicleRow
-                  key={v.id}
-                  v={v}
-                  owner={{ name: v.ownerName, cedula: v.ownerIdNumber }}
-                  onAction={handleAction}
-                  disabled={actionLoading === v.id}
-                  hasOpenRequest={openRequestIds.has(v.id)}
-                />
-              ))}
-              {vehicles.length === 0 && (
-                <tr><td colSpan="5"><div className="empty" style={{ padding: 50 }}><Icon name="car" size={42} className="ico" /><p>{deferredQ ? 'Sin resultados para tu búsqueda.' : emptyCopy[tab]}</p></div></td></tr>
-              )}
-            </tbody>
-          </table>
+          <div className="tbl-wrap">
+            <table className="tbl">
+              <thead>
+                <tr><th>Vehículo</th><th>Valet</th><th>Ingreso</th><th>Estado</th><th></th></tr>
+              </thead>
+              <tbody>
+                {vehicles.map(v => (
+                  <VehicleRow
+                    key={v.id}
+                    v={v}
+                    owner={{ name: v.ownerName, cedula: v.ownerIdNumber }}
+                    onAction={handleAction}
+                    disabled={actionLoading === v.id}
+                    hasOpenRequest={openRequestIds.has(v.id)}
+                  />
+                ))}
+                {vehicles.length === 0 && (
+                  <tr><td colSpan="5"><div className="empty" style={{ padding: 50 }}><Icon name="car" size={42} className="ico" /><p>{deferredQ ? 'Sin resultados para tu búsqueda.' : emptyCopy[tab]}</p></div></td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         )}
         {pageMeta.totalPages > 1 && (
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 12, padding: '14px 0', borderTop: '1px solid var(--slate-800)' }}>
@@ -516,7 +520,7 @@ function EmployeeFormModal({ open, onClose, onSave, onDelete, employee }) {
       </>}
     >
       <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        <div className="grid-2">
           <div className="field"><label>Nombre completo</label>
             <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="Juan García" required />
           </div>
@@ -619,7 +623,7 @@ function EmployeesScreen() {
         actions={<button className="btn btn-primary" onClick={() => setEditing({})}><Icon name="plus" size={14} /> Nuevo empleado</button>}
       />
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+      <div className="kpi-grid-4">
         <KpiCard icon="users" tone="blue"   label="Total empleados" value={employees.length} sub="Registrados en compañía" />
         <KpiCard icon="car"   tone="green"  label="Valets"          value={valetCount}       sub="Estacionan vehículos" />
         <KpiCard icon="user"  tone="indigo" label="Attendants"      value={attCount}         sub="Atienden al cliente" />
@@ -634,34 +638,36 @@ function EmployeesScreen() {
             <p>Cargando empleados…</p>
           </div>
         ) : (
-          <table className="tbl">
-            <thead><tr><th>Empleado</th><th>Cédula</th><th>Rol</th><th>Email</th><th></th></tr></thead>
-            <tbody>
-              {employees.length === 0 && (
-                <tr><td colSpan="5"><div className="empty" style={{ padding: 40 }}><Icon name="users" size={42} className="ico" /><p>No hay empleados registrados.</p></div></td></tr>
-              )}
-              {employees.map(e => (
-                <tr key={e.id}>
-                  <td>
-                    <div className="car-row">
-                      <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg, #60A5FA, #6366F1)', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 700, fontSize: 12 }}>
-                        {(e.name || '?').split(' ').slice(0,2).map(w => w[0]).join('')}
+          <div className="tbl-wrap">
+            <table className="tbl">
+              <thead><tr><th>Empleado</th><th>Cédula</th><th>Rol</th><th>Email</th><th></th></tr></thead>
+              <tbody>
+                {employees.length === 0 && (
+                  <tr><td colSpan="5"><div className="empty" style={{ padding: 40 }}><Icon name="users" size={42} className="ico" /><p>No hay empleados registrados.</p></div></td></tr>
+                )}
+                {employees.map(e => (
+                  <tr key={e.id}>
+                    <td>
+                      <div className="car-row">
+                        <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg, #60A5FA, #6366F1)', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 700, fontSize: 12 }}>
+                          {(e.name || '?').split(' ').slice(0,2).map(w => w[0]).join('')}
+                        </div>
+                        <span className="name">{e.name}</span>
                       </div>
-                      <span className="name">{e.name}</span>
-                    </div>
-                  </td>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{e.idNumber}</td>
-                  <td><Badge tone={e.type === 'VALET' ? 'blue' : 'slate'}>{e.type}</Badge></td>
-                  <td>{e.email || '—'}</td>
-                  <td style={{ textAlign: 'right' }}>
-                    <button className="btn btn-ghost" style={{ padding: '6px 10px', color: '#F87171' }} onClick={() => remove(e)} title="Eliminar empleado">
-                      <Icon name="trash" size={14} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    </td>
+                    <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{e.idNumber}</td>
+                    <td><Badge tone={e.type === 'VALET' ? 'blue' : 'slate'}>{e.type}</Badge></td>
+                    <td>{e.email || '—'}</td>
+                    <td style={{ textAlign: 'right' }}>
+                      <button className="btn btn-ghost" style={{ padding: '6px 10px', color: '#F87171' }} onClick={() => remove(e)} title="Eliminar empleado">
+                        <Icon name="trash" size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
@@ -717,22 +723,24 @@ function PaymentMethodsScreen() {
             <p>Cargando métodos…</p>
           </div>
         ) : (
-          <table className="tbl">
-            <thead><tr><th>Nombre</th><th>Tipo</th><th>Detalle</th><th>Estado</th></tr></thead>
-            <tbody>
-              {methods.length === 0 && (
-                <tr><td colSpan="4"><div className="empty" style={{ padding: 40 }}><Icon name="wallet" size={42} className="ico" /><p>No hay métodos de pago registrados.</p></div></td></tr>
-              )}
-              {methods.map(m => (
-                <tr key={m.id}>
-                  <td style={{ fontWeight: 600, color: '#fff' }}>{m.name || '—'}</td>
-                  <td><Badge tone={TYPE_TONE[m.type] || 'slate'}>{TYPE_LABEL[m.type] || m.type}</Badge></td>
-                  <td style={{ color: 'var(--slate-400)', fontSize: 13 }}>{m.detail || m.accountNumber || '—'}</td>
-                  <td><Badge tone={m.isActive ? 'green' : 'slate'}>{m.isActive ? 'Activo' : 'Inactivo'}</Badge></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="tbl-wrap">
+            <table className="tbl">
+              <thead><tr><th>Nombre</th><th>Tipo</th><th>Detalle</th><th>Estado</th></tr></thead>
+              <tbody>
+                {methods.length === 0 && (
+                  <tr><td colSpan="4"><div className="empty" style={{ padding: 40 }}><Icon name="wallet" size={42} className="ico" /><p>No hay métodos de pago registrados.</p></div></td></tr>
+                )}
+                {methods.map(m => (
+                  <tr key={m.id}>
+                    <td style={{ fontWeight: 600, color: '#fff' }}>{m.name || '—'}</td>
+                    <td><Badge tone={TYPE_TONE[m.type] || 'slate'}>{TYPE_LABEL[m.type] || m.type}</Badge></td>
+                    <td style={{ color: 'var(--slate-400)', fontSize: 13 }}>{m.detail || m.accountNumber || '—'}</td>
+                    <td><Badge tone={m.isActive ? 'green' : 'slate'}>{m.isActive ? 'Activo' : 'Inactivo'}</Badge></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
       <Toast message={toast} />
@@ -1144,7 +1152,7 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
 
         {newOwner && (
           <div className="reg-new-owner">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div className="grid-2" style={{ gap: 12 }}>
               <div className="field"><label>Nombre completo</label>
                 <input value={newOwner.name} onChange={e => setNewOwner(n => ({ ...n, name: e.target.value }))} placeholder="Juan Pérez" required />
               </div>
@@ -1177,7 +1185,7 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
         <div className="reg-section-label">2 · Vehículo</div>
 
         {!(owner && selectedVehicleId) && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div className="grid-2" style={{ gap: 12 }}>
             <div className="field"><label>Placa</label>
               <input
                 value={vehicle.plate}

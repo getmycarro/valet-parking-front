@@ -194,7 +194,7 @@ export default function TicketDetailScreen({ user }) {
       />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-        <div className="glass" style={{ padding: 24, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div className="glass grid-2" style={{ padding: 24 }}>
           {v.ticketNumber && (
             <div>
               <div style={{ color: 'var(--slate-400)', fontSize: 12, marginBottom: 4 }}>N° de ticket</div>
@@ -269,51 +269,53 @@ export default function TicketDetailScreen({ user }) {
           {(!v.payments || v.payments.length === 0) ? (
             <p style={{ color: 'var(--slate-400)', fontSize: 13 }}>Sin pagos registrados.</p>
           ) : (
-            <table className="tbl">
-              <thead>
-                <tr><th>Método</th><th>Monto</th><th>Referencia</th><th>Estado</th><th></th></tr>
-              </thead>
-              <tbody>
-                {v.payments.map(p => (
-                  <React.Fragment key={p.id}>
-                    <tr>
-                      <td>{p.paymentMethod?.name || '—'}</td>
-                      <td>${p.amountUSD}</td>
-                      <td>{p.reference || '—'}</td>
-                      <td>
-                        <Badge tone={p.status === 'RECEIVED' ? 'green' : p.status === 'CANCELLED' ? 'red' : 'yellow'}>
-                          {p.status === 'RECEIVED' ? 'Aprobado' : p.status === 'CANCELLED' ? 'Rechazado' : 'Pendiente'}
-                        </Badge>
-                      </td>
-                      <td style={{ whiteSpace: 'nowrap' }}>
-                        {p.status === 'PENDING' && (
-                          <div style={{ display: 'flex', gap: 6 }}>
-                            <button className="btn btn-primary" disabled={paymentLoading}
-                              onClick={() => updatePayment(p.id, 'RECEIVED')}
-                              style={{ padding: '4px 10px', fontSize: 12 }}>Aprobar</button>
-                            <button className="btn btn-ghost" disabled={paymentLoading}
-                              onClick={() => updatePayment(p.id, 'CANCELLED')}
-                              style={{ padding: '4px 10px', fontSize: 12 }}>Rechazar</button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                    {p.image && (
-                      <tr key={`${p.id}-img`}>
-                        <td colSpan={5} style={{ paddingBottom: 12, paddingTop: 4 }}>
-                          <div style={{ fontSize: 12, color: 'var(--slate-400)', marginBottom: 4 }}>Comprobante:</div>
-                          <img
-                            src={p.image}
-                            alt="Comprobante de pago"
-                            style={{ maxWidth: '100%', maxHeight: 280, borderRadius: 8, border: '1px solid var(--slate-700)', display: 'block' }}
-                          />
+            <div className="tbl-wrap">
+              <table className="tbl">
+                <thead>
+                  <tr><th>Método</th><th>Monto</th><th>Referencia</th><th>Estado</th><th></th></tr>
+                </thead>
+                <tbody>
+                  {v.payments.map(p => (
+                    <React.Fragment key={p.id}>
+                      <tr>
+                        <td>{p.paymentMethod?.name || '—'}</td>
+                        <td>${p.amountUSD}</td>
+                        <td>{p.reference || '—'}</td>
+                        <td>
+                          <Badge tone={p.status === 'RECEIVED' ? 'green' : p.status === 'CANCELLED' ? 'red' : 'yellow'}>
+                            {p.status === 'RECEIVED' ? 'Aprobado' : p.status === 'CANCELLED' ? 'Rechazado' : 'Pendiente'}
+                          </Badge>
+                        </td>
+                        <td style={{ whiteSpace: 'nowrap' }}>
+                          {p.status === 'PENDING' && (
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button className="btn btn-primary" disabled={paymentLoading}
+                                onClick={() => updatePayment(p.id, 'RECEIVED')}
+                                style={{ padding: '4px 10px', fontSize: 12 }}>Aprobar</button>
+                              <button className="btn btn-ghost" disabled={paymentLoading}
+                                onClick={() => updatePayment(p.id, 'CANCELLED')}
+                                style={{ padding: '4px 10px', fontSize: 12 }}>Rechazar</button>
+                            </div>
+                          )}
                         </td>
                       </tr>
-                    )}
-                  </React.Fragment>
-                ))}
-              </tbody>
-            </table>
+                      {p.image && (
+                        <tr key={`${p.id}-img`}>
+                          <td colSpan={5} style={{ paddingBottom: 12, paddingTop: 4 }}>
+                            <div style={{ fontSize: 12, color: 'var(--slate-400)', marginBottom: 4 }}>Comprobante:</div>
+                            <img
+                              src={p.image}
+                              alt="Comprobante de pago"
+                              style={{ maxWidth: '100%', maxHeight: 280, borderRadius: 8, border: '1px solid var(--slate-700)', display: 'block' }}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 
