@@ -1,0 +1,423 @@
+import React, { useEffect, useState, useCallback } from 'react';
+import { Link } from 'react-router-dom';
+import { Icon } from '../components/icons.jsx';
+import { KpiCard, Badge, PageHead, SectionHead, Modal, Toast, Plate } from '../components/ui.jsx';
+import api from '../lib/api.js';
+
+/* ─── WORKDAYS SCREEN (admin / super_admin) ─────────────────────────────── */
+
+export default function WorkdaysScreen({ user }) {
+  const [activeWorkday, setActiveWorkday]     = useState(null);
+  const [workdays, setWorkdays]               = useState([]);
+  const [stats, setStats]                     = useState({ total: 0, inside: 0, exited: 0 });
+  const [isLoading, setIsLoading]             = useState(true);
+  const [isActionLoading, setIsActionLoading] = useState(false);
+  const [showCloseModal, setShowCloseModal]   = useState(false);
+  const [closeError, setCloseError]           = useState(null);
+  const [toast, setToast]                     = useState(null);
+  const [selectedWorkday, setSelectedWorkday] = useState(null);
+  const [wdVehicles, setWdVehicles]           = useState([]);
+  const [wdVehiclesLoading, setWdVehiclesLoading] = useState(false);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2500);
+    return () => clearTimeout(t);
+  }, [toast]);
+
+  const canManage = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
+
+  /* ── fetch helpers ── */
+
+  const fetchStats = useCallback(async (id) => {
+    try {
+      const res = await api.get(`/workdays/${id}/stats`);
+      const raw = res.data.data;
+      setStats({
+        total:  raw?.total  ?? 0,
+        inside: raw?.inside ?? 0,
+        exited: raw?.exited ?? 0,
+      });
+    } catch {
+      /* non-critical — leave previous stats */
+    }
+  }, []);
+
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const [activeRes, listRes] = await Promise.allSettled([
+        api.get('/workdays/active'),
+        api.get('/workdays'),
+      ]);
+
+      let found = null;
+      if (activeRes.status === 'fulfilled') {
+        found = activeRes.value.data.data ?? null;
+        setActiveWorkday(found);
+      } else {
+        /* 404 means no active workday — treat as null */
+        setActiveWorkday(null);
+      }
+
+      if (listRes.status === 'fulfilled') {
+        const raw = listRes.value.data.data;
+        setWorkdays(Array.isArray(raw) ? raw : (raw?.data ?? []));
+      }
+
+      if (found?.id) {
+        await fetchStats(found.id);
+      } else {
+        setStats({ total: 0, inside: 0, exited: 0 });
+      }
+    } catch {
+      setToast('Error al cargar jornadas');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [fetchStats]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  /* ── action handlers ── */
+
+  const handleOpen = async () => {
+    setIsActionLoading(true);
+    try {
+      await api.post('/workdays/open');
+      setToast('Jornada abierta correctamente');
+      await fetchData();
+    } catch (err) {
+      setToast(err.response?.data?.message || 'Error al abrir la jornada');
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleClose = () => {
+    setCloseError(null);
+    setShowCloseModal(true);
+  };
+
+  const confirmClose = async () => {
+    if (!activeWorkday?.id) return;
+    setIsActionLoading(true);
+    setCloseError(null);
+    try {
+      await api.patch(`/workdays/${activeWorkday.id}/close`);
+      setShowCloseModal(false);
+      setToast('Jornada cerrada correctamente');
+      await fetchData();
+    } catch (err) {
+      setCloseError(err.response?.data?.message || 'Error al cerrar la jornada');
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const fetchWorkdayVehicles = async (workdayId) => {
+    setWdVehiclesLoading(true);
+    try {
+      const res = await api.get('/vehicles', { params: { workdayId, limit: 200 } });
+      const raw = res.data.data;
+      setWdVehicles(Array.isArray(raw) ? raw : (raw?.data || []));
+    } catch {
+      setWdVehicles([]);
+    } finally {
+      setWdVehiclesLoading(false);
+    }
+  };
+
+  /* ── date formatting ── */
+
+  const formatDate = (iso) => {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString('es-VE', {
+      year: 'numeric', month: 'short', day: 'numeric',
+    });
+  };
+
+  const formatTime = (iso) => {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleTimeString('es-VE', {
+      hour: '2-digit', minute: '2-digit',
+    });
+  };
+
+  /* ── render ── */
+
+  return (
+    <div className="page">
+      <PageHead
+        title="Jornadas"
+        subtitle="Gestiona las jornadas de trabajo y monitorea la actividad del lote"
+      />
+
+      {/* ── active workday banner ── */}
+      {isLoading ? (
+        <div className="glass" style={{ padding: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, color: 'var(--admin-text-3)' }}>
+          <Icon name="loader" size={20} style={{ animation: 'spin 1s linear infinite' }} />
+          <span>Cargando estado de jornada…</span>
+        </div>
+      ) : activeWorkday ? (
+        <>
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '14px 20px',
+            background: 'rgba(34,197,94,0.10)',
+            border: '1px solid rgba(34,197,94,0.30)',
+            borderRadius: 12,
+            gap: 12,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{
+                width: 10, height: 10, borderRadius: '50%',
+                background: '#22C55E',
+                boxShadow: '0 0 8px rgba(34,197,94,0.7)',
+                flexShrink: 0,
+              }} />
+              <span style={{ color: '#22C55E', fontWeight: 600, fontSize: 14, fontFamily: 'var(--font-display)' }}>
+                Jornada activa desde {formatDate(activeWorkday.openedAt)} · {formatTime(activeWorkday.openedAt)}
+              </span>
+            </div>
+            {canManage && (
+              <button
+                className="btn btn-danger"
+                style={{ padding: '8px 18px', fontSize: 13 }}
+                onClick={handleClose}
+                disabled={isActionLoading}
+              >
+                <Icon name="x" size={14} />
+                {isActionLoading ? 'Cerrando…' : 'Cerrar Jornada'}
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+            <KpiCard icon="car"        tone="blue"  label="Vehículos en lote"   value={stats.inside} sub="Actualmente en el lote" />
+            <KpiCard icon="arrowRight" tone="green" label="Vehículos salidos"   value={stats.exited} sub="Salidas en esta jornada" />
+            <KpiCard icon="clock"      tone="amber" label="Total en jornada"    value={stats.total}  sub="Registros en la jornada" />
+          </div>
+        </>
+      ) : (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '14px 20px',
+          background: 'rgba(100,116,139,0.10)',
+          border: '1px solid rgba(100,116,139,0.25)',
+          borderRadius: 12,
+          gap: 12,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Icon name="clock" size={16} style={{ color: 'var(--admin-text-3)' }} />
+            <span style={{ color: 'var(--admin-text-2)', fontSize: 14 }}>
+              No hay jornada activa
+            </span>
+          </div>
+          {canManage && (
+            <button
+              className="btn btn-primary"
+              style={{ padding: '8px 18px', fontSize: 13 }}
+              onClick={handleOpen}
+              disabled={isActionLoading}
+            >
+              <Icon name="plus" size={14} />
+              {isActionLoading ? 'Abriendo…' : 'Abrir Jornada'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ── workday history table ── */}
+      {selectedWorkday ? (
+        <div className="glass">
+          <SectionHead
+            title={`Vehículos · Jornada ${formatDate(selectedWorkday.openedAt)} ${formatTime(selectedWorkday.openedAt)}`}
+            meta={wdVehiclesLoading ? 'Cargando…' : `${wdVehicles.length} vehículos`}
+            actions={
+              <button className="btn btn-ghost btn-sm" onClick={() => setSelectedWorkday(null)}>
+                <Icon name="arrow" size={14} /> Volver a jornadas
+              </button>
+            }
+          />
+          {wdVehiclesLoading ? (
+            <div className="empty" style={{ padding: 60 }}>
+              <Icon name="loader" size={32} className="ico" style={{ animation: 'spin 1s linear infinite' }} />
+              <p>Cargando vehículos…</p>
+            </div>
+          ) : wdVehicles.length === 0 ? (
+            <div className="empty" style={{ padding: 40 }}>
+              <Icon name="car" size={42} className="ico" />
+              <p>Sin vehículos en esta jornada.</p>
+            </div>
+          ) : (
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th>N° Ticket</th>
+                  <th>Placa</th>
+                  <th>Vehículo</th>
+                  <th>Estado</th>
+                  <th>Ingreso</th>
+                </tr>
+              </thead>
+              <tbody>
+                {wdVehicles.map(v => {
+                  const STATUS_LABEL = { in_lot: 'En lote', active: 'Sin pago', in_review: 'En revisión', pending_delivery: 'Por entregar', completed: 'Entregado', FREE: 'Entregado', PAID: 'Por entregar', UNPAID: 'Sin pago', PAYMENT_UNDER_REVIEW: 'En revisión' };
+                  const STATUS_TONE  = { in_lot: 'blue', active: 'red', in_review: 'amber', pending_delivery: 'amber', completed: 'green', FREE: 'green', PAID: 'amber', UNPAID: 'red', PAYMENT_UNDER_REVIEW: 'amber' };
+                  const statusKey = v.status || v.currentStatus;
+                  return (
+                    <tr key={v.id}>
+                      <td style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--admin-text-2)' }}>
+                        {v.ticketNumber ? `#${String(v.ticketNumber).padStart(3, '0')}` : '—'}
+                      </td>
+                      <td>
+                        <Link to={`/admin/ticket/${v.id}`} style={{ color: 'var(--gold)', fontWeight: 600, fontFamily: 'var(--font-mono)', fontSize: 13, textDecoration: 'none' }}>
+                          {v.plate}
+                        </Link>
+                      </td>
+                      <td style={{ color: 'var(--admin-text-2)', fontSize: 13 }}>{v.brand} {v.model}</td>
+                      <td><Badge tone={STATUS_TONE[statusKey] || 'slate'}>{STATUS_LABEL[statusKey] || statusKey || '—'}</Badge></td>
+                      <td style={{ color: 'var(--admin-text-3)', fontSize: 12 }}>
+                        {v.checkInAt ? new Date(v.checkInAt).toLocaleString('es-VE') : '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      ) : (
+        <div className="glass">
+          <SectionHead
+            title="Historial de jornadas"
+            meta={`${workdays.length} registradas`}
+          />
+          {isLoading ? (
+            <div className="empty" style={{ padding: 60 }}>
+              <Icon name="loader" size={32} className="ico" style={{ animation: 'spin 1s linear infinite' }} />
+              <p>Cargando jornadas…</p>
+            </div>
+          ) : (
+            <table className="tbl">
+              <thead>
+                <tr>
+                  <th>Fecha apertura</th>
+                  <th>Fecha cierre</th>
+                  <th>Total vehículos</th>
+                  <th>Estado</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {workdays.length === 0 && (
+                  <tr>
+                    <td colSpan="5">
+                      <div className="empty" style={{ padding: 40 }}>
+                        <Icon name="clock" size={42} className="ico" />
+                        <p>No hay jornadas registradas.</p>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                {workdays.map(w => {
+                  const statusTone  = w.status === 'ACTIVE' ? 'green' : 'slate';
+                  const statusLabel = w.status === 'ACTIVE' ? 'Activa'  : 'Cerrada';
+                  const vehicleCount = w._count?.parkingRecords ?? w.vehicleCount ?? '—';
+                  return (
+                    <tr key={w.id}>
+                      <td style={{ color: 'var(--admin-text-1)', fontSize: 13 }}>
+                        {formatDate(w.openedAt)}&nbsp;
+                        <span style={{ color: 'var(--admin-text-3)' }}>{formatTime(w.openedAt)}</span>
+                      </td>
+                      <td style={{ color: 'var(--admin-text-2)', fontSize: 13 }}>
+                        {w.closedAt ? (
+                          <>
+                            {formatDate(w.closedAt)}&nbsp;
+                            <span style={{ color: 'var(--admin-text-3)' }}>{formatTime(w.closedAt)}</span>
+                          </>
+                        ) : '—'}
+                      </td>
+                      <td style={{ color: 'var(--admin-text-1)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>
+                        {vehicleCount}
+                      </td>
+                      <td>
+                        <Badge tone={statusTone}>{statusLabel}</Badge>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => { setSelectedWorkday(w); fetchWorkdayVehicles(w.id); }}
+                        >
+                          Ver vehículos
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {/* ── close confirmation modal ── */}
+      <Modal
+        open={showCloseModal}
+        onClose={() => setShowCloseModal(false)}
+        title="Cerrar jornada"
+        description="Esta acción cerrará la jornada activa."
+        footer={
+          <>
+            <button
+              className="btn btn-secondary"
+              onClick={() => setShowCloseModal(false)}
+              disabled={isActionLoading}
+            >
+              Cancelar
+            </button>
+            <button
+              className="btn btn-danger"
+              onClick={confirmClose}
+              disabled={isActionLoading}
+            >
+              {isActionLoading ? 'Cerrando…' : 'Cerrar jornada'}
+            </button>
+          </>
+        }
+      >
+        <p style={{ color: 'var(--admin-text-2)', fontSize: 14, lineHeight: 1.6 }}>
+          ¿Está seguro? Esta jornada tiene{' '}
+          <strong style={{ color: 'var(--admin-text-1)' }}>{stats.total}</strong>{' '}
+          vehículos registrados.
+        </p>
+        {closeError && (
+          <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.35)', borderRadius: 8, color: '#F87171', fontSize: 13 }}>
+            {closeError}
+          </div>
+        )}
+        <div style={{
+          marginTop: 16,
+          display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10,
+        }}>
+          <div style={{ background: 'var(--slate-800)', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
+            <div style={{ color: 'var(--admin-text-1)', fontWeight: 700, fontSize: 20, fontFamily: 'var(--font-display)' }}>{stats.inside}</div>
+            <div style={{ color: 'var(--admin-text-3)', fontSize: 11, marginTop: 2 }}>En lote</div>
+          </div>
+          <div style={{ background: 'var(--slate-800)', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
+            <div style={{ color: 'var(--admin-text-1)', fontWeight: 700, fontSize: 20, fontFamily: 'var(--font-display)' }}>{stats.exited}</div>
+            <div style={{ color: 'var(--admin-text-3)', fontSize: 11, marginTop: 2 }}>Salidos</div>
+          </div>
+          <div style={{ background: 'var(--slate-800)', borderRadius: 8, padding: '10px 12px', textAlign: 'center' }}>
+            <div style={{ color: 'var(--admin-text-1)', fontWeight: 700, fontSize: 20, fontFamily: 'var(--font-display)' }}>{stats.total}</div>
+            <div style={{ color: 'var(--admin-text-3)', fontSize: 11, marginTop: 2 }}>Total</div>
+          </div>
+        </div>
+      </Modal>
+
+      <Toast message={toast} />
+      <style>{`@keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }`}</style>
+    </div>
+  );
+}
