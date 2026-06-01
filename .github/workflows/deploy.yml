@@ -13,23 +13,18 @@ jobs:
       - name: Checkout código
         uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: latest
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
       - name: Instalar dependencias
-        run: pnpm install --no-frozen-lockfile
+        run: npm install
 
       - name: Build
         env:
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
-        run: pnpm build
+        run: npm run build
 
       - name: Copiar build al servidor
         uses: appleboy/scp-action@v0.1.7
@@ -37,7 +32,7 @@ jobs:
           host: ${{ secrets.DROPLET_HOST }}
           username: ${{ secrets.DROPLET_USER }}
           key: ${{ secrets.DROPLET_SSH_KEY }}
-          source: ".next,public,package.json,pnpm-lock.yaml,ecosystem.config.js"
+          source: ".next,public,package.json,package-lock.json,ecosystem.config.js"
           target: "~/valet-parking"
 
       - name: Reiniciar PM2
@@ -50,7 +45,7 @@ jobs:
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             cd ~/valet-parking
-            pnpm install --no-frozen-lockfile --prod
+            npm install --omit=dev
             pm2 reload ecosystem.config.js --env production \
               || pm2 start ecosystem.config.js --env production
             pm2 save
