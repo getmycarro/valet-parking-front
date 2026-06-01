@@ -32,7 +32,7 @@ jobs:
           host: ${{ secrets.DROPLET_HOST }}
           username: ${{ secrets.DROPLET_USER }}
           key: ${{ secrets.DROPLET_SSH_KEY }}
-          source: ".next,public,package.json,package-lock.json,ecosystem.config.js"
+          source: "dist,public,package.json,package-lock.json,ecosystem.config.js"
           target: "~/valet-parking"
 
       - name: Reiniciar PM2
@@ -45,7 +45,6 @@ jobs:
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             cd ~/valet-parking
-            npm install --omit=dev
             pm2 reload ecosystem.config.js --env production \
               || pm2 start ecosystem.config.js --env production
             pm2 save
