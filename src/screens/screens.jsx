@@ -1410,4 +1410,243 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
 }
 
 
-export { LoginScreen, DashboardScreen, VehiclesScreen, EmployeesScreen, EmployeeFormModal, RegisterVehicleModal, PaymentModal, PaymentMethodsScreen, ROLE_PRESETS, inferRole };
+/* ─── REPORTS SCREEN ─────────────────────────────────── */
+function ReportsScreen() {
+  const today = new Date();
+  const [viewMode, setViewMode] = useState('daily'); // 'daily' | 'monthly'
+  const [selectedMonth, setSelectedMonth] = useState(
+    `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
+  );
+  const [selectedYear, setSelectedYear] = useState(String(today.getFullYear()));
+  const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [exportDateFrom, setExportDateFrom] = useState('');
+  const [exportDateTo, setExportDateTo] = useState('');
+  const [exportStatus, setExportStatus] = useState('');
+  const [downloading, setDownloading] = useState(false);
+  const [exportErr, setExportErr] = useState(null);
+
+  // Compute date range for the current view
+  const getDateRange = () => {
+    if (viewMode === 'daily') {
+      const [year, month] = selectedMonth.split('-').map(Number);
+      const daysInMonth = new Date(year, month, 0).getDate();
+      return {
+        dateFrom: `${selectedMonth}-01`,
+        dateTo: `${selectedMonth}-${String(daysInMonth).padStart(2, '0')}`,
+      };
+    } else {
+      return {
+        dateFrom: `${selectedYear}-01-01`,
+        dateTo: `${selectedYear}-12-31`,
+      };
+    }
+  };
+
+  useEffect(() => {
+    const { dateFrom, dateTo } = getDateRange();
+    setLoading(true);
+    api.get('/payments', { params: { dateFrom, dateTo, limit: 5000, status: 'RECEIVED' } })
+      .then(res => {
+        const raw = res.data?.data;
+        const list = Array.isArray(raw) ? raw : (raw?.data || []);
+        setPayments(list);
+      })
+      .catch(() => setPayments([]))
+      .finally(() => setLoading(false));
+  }, [viewMode, selectedMonth, selectedYear]);
+
+  // Aggregate by day (1-31) or month (0-11)
+  const aggregated = (() => {
+    if (viewMode === 'daily') {
+      const [year, month] = selectedMonth.split('-').map(Number);
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const byDay = {};
+      payments.forEach(p => {
+        const d = new Date(p.createdAt || p.date);
+        if (d.getFullYear() === year && d.getMonth() + 1 === month) {
+          const day = d.getDate();
+          byDay[day] = (byDay[day] || 0) + (p.amountUSD || 0);
+        }
+      });
+      return Array.from({ length: daysInMonth }, (_, i) => ({
+        label: String(i + 1),
+        value: byDay[i + 1] || 0,
+      }));
+    } else {
+      const year = parseInt(selectedYear, 10);
+      const byMonth = {};
+      payments.forEach(p => {
+        const d = new Date(p.createdAt || p.date);
+        if (d.getFullYear() === year) {
+          const m = d.getMonth();
+          byMonth[m] = (byMonth[m] || 0) + (p.amountUSD || 0);
+        }
+      });
+      const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+      return Array.from({ length: 12 }, (_, i) => ({
+        label: MONTHS[i],
+        value: byMonth[i] || 0,
+      }));
+    }
+  })();
+
+  const maxValue = Math.max(...aggregated.map(d => d.value), 0.01);
+  const totalEarned = payments.reduce((s, p) => s + (p.amountUSD || 0), 0);
+  const avgPayment = payments.length > 0 ? totalEarned / payments.length : 0;
+
+  // Navigation helpers
+  const prevPeriod = () => {
+    if (viewMode === 'daily') {
+      const d = new Date(selectedMonth + '-01');
+      d.setMonth(d.getMonth() - 1);
+      setSelectedMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    } else {
+      setSelectedYear(y => String(parseInt(y) - 1));
+    }
+  };
+  const nextPeriod = () => {
+    if (viewMode === 'daily') {
+      const d = new Date(selectedMonth + '-01');
+      d.setMonth(d.getMonth() + 1);
+      setSelectedMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    } else {
+      setSelectedYear(y => String(parseInt(y) + 1));
+    }
+  };
+
+  const periodLabel = viewMode === 'daily'
+    ? new Date(selectedMonth + '-15').toLocaleDateString('es-VE', { month: 'long', year: 'numeric' })
+    : selectedYear;
+
+  // XLSX download
+  const downloadXlsx = async () => {
+    if (!exportDateFrom || !exportDateTo) { setExportErr('Selecciona un rango de fechas'); return; }
+    setDownloading(true);
+    setExportErr(null);
+    try {
+      const params = { dateFrom: exportDateFrom, dateTo: exportDateTo };
+      if (exportStatus) params.status = exportStatus;
+      const res = await api.get('/payments/export', { params, responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ganancias_${exportDateFrom}_${exportDateTo}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      setExportErr('Error al generar el reporte. Intenta de nuevo.');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  return (
+    <div className="page">
+      <PageHead title="Reportes" subtitle="Visualiza tus ganancias y descarga reportes de facturación." />
+
+      {/* View toggle + period navigation */}
+      <div className="glass" style={{ padding: '20px 24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {['daily', 'monthly'].map(mode => (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                className={`btn ${viewMode === mode ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ padding: '8px 18px', fontSize: 13 }}
+              >
+                {mode === 'daily' ? 'Por día' : 'Por mes'}
+              </button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button className="btn btn-ghost" onClick={prevPeriod} style={{ padding: '6px 12px' }}>‹</button>
+            <span style={{ fontWeight: 600, color: '#fff', minWidth: 140, textAlign: 'center', textTransform: 'capitalize' }}>
+              {periodLabel}
+            </span>
+            <button className="btn btn-ghost" onClick={nextPeriod} style={{ padding: '6px 12px' }}>›</button>
+          </div>
+        </div>
+
+        {/* KPI row */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
+          {[
+            { label: 'Total cobrado', value: `$${totalEarned.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+            { label: 'Pagos recibidos', value: payments.length },
+            { label: 'Promedio por pago', value: `$${avgPayment.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+          ].map(k => (
+            <div key={k.label} style={{ background: 'var(--slate-800)', borderRadius: 12, padding: '16px 20px' }}>
+              <div style={{ fontSize: 12, color: 'var(--slate-400)', marginBottom: 6 }}>{k.label}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, color: '#fff', fontFamily: 'var(--font-display)' }}>{k.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Bar chart */}
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: 40, color: 'var(--slate-400)' }}>Cargando datos…</div>
+        ) : (
+          <>
+            <div className="chart" style={{ alignItems: 'flex-end', position: 'relative' }}>
+              {aggregated.map((d, i) => {
+                const pct = Math.max((d.value / maxValue) * 100, d.value > 0 ? 4 : 1);
+                return (
+                  <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, height: '100%', justifyContent: 'flex-end' }} title={`$${d.value.toFixed(2)}`}>
+                    <div
+                      className={`chart-bar${i % 2 === 0 ? '' : ' alt'}`}
+                      style={{ height: `${pct}%`, width: '100%', opacity: d.value > 0 ? 0.85 : 0.2 }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+            <div className="chart-labels" style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0 0', overflowX: 'hidden' }}>
+              {aggregated
+                .filter((_, i) => aggregated.length <= 12 || i % Math.ceil(aggregated.length / 12) === 0)
+                .map((d, i) => (
+                  <span key={i} style={{ fontSize: 11, color: 'var(--slate-500)' }}>{d.label}</span>
+                ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* XLSX export panel */}
+      <div className="glass" style={{ padding: '20px 24px' }}>
+        <div style={{ fontSize: 15, fontWeight: 600, color: '#fff', marginBottom: 16 }}>Descargar reporte de facturación</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 12, alignItems: 'end', flexWrap: 'wrap' }}>
+          <div className="field">
+            <label>Desde</label>
+            <input type="date" value={exportDateFrom} onChange={e => setExportDateFrom(e.target.value)} />
+          </div>
+          <div className="field">
+            <label>Hasta</label>
+            <input type="date" value={exportDateTo} onChange={e => setExportDateTo(e.target.value)} />
+          </div>
+          <div className="field">
+            <label>Estado</label>
+            <select value={exportStatus} onChange={e => setExportStatus(e.target.value)} style={{ background: 'var(--slate-800)', border: '1px solid var(--slate-700)', borderRadius: 8, color: exportStatus ? '#fff' : 'var(--slate-400)', padding: '10px 12px', fontFamily: 'inherit', fontSize: 14 }}>
+              <option value="">Todos</option>
+              <option value="RECEIVED">Aprobados</option>
+              <option value="PENDING">Pendientes</option>
+              <option value="CANCELLED">Cancelados</option>
+            </select>
+          </div>
+          <button className="btn btn-primary" onClick={downloadXlsx} disabled={downloading} style={{ height: 44, whiteSpace: 'nowrap' }}>
+            {downloading ? 'Generando…' : '⬇ Descargar XLSX'}
+          </button>
+        </div>
+        {exportErr && (
+          <div style={{ marginTop: 10, fontSize: 13, color: '#F87171', padding: '8px 12px', background: 'rgba(248,113,113,0.1)', borderRadius: 8, border: '1px solid rgba(248,113,113,0.2)' }}>
+            {exportErr}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export { LoginScreen, DashboardScreen, VehiclesScreen, EmployeesScreen, EmployeeFormModal, RegisterVehicleModal, PaymentModal, PaymentMethodsScreen, ReportsScreen, ROLE_PRESETS, inferRole };

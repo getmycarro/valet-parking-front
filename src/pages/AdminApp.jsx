@@ -3,7 +3,7 @@ import { Link, Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import api from '../lib/api.js';
 import {
   LoginScreen, DashboardScreen, VehiclesScreen, EmployeesScreen, RegisterVehicleModal,
-  PaymentMethodsScreen,
+  PaymentMethodsScreen, ReportsScreen,
 } from '../screens/screens.jsx';
 import { CompaniesScreen, UsersScreen, AttendantDashboard } from '../screens/role-screens.jsx';
 import TicketDetailScreen from '../screens/TicketDetailScreen.jsx';
@@ -97,6 +97,7 @@ export default function AdminApp() {
   else if (active === 'workdays')       body = <WorkdaysScreen user={user} />;
   else if (active === 'methods')        body = <PaymentMethodsScreen />;
   else if (active === 'notifications')  body = <NotificationsScreen />;
+  else if (active === 'reports')        body = <ReportsScreen />;
   else {
     body = (
       <div className="page">
