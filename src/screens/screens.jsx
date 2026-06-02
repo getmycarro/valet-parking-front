@@ -129,7 +129,12 @@ function DashboardScreen({ onRegister, onAction }) {
         if (vRes.status === 'fulfilled') {
           const raw = vRes.value.data.data;
           const list = Array.isArray(raw) ? raw : (raw?.data || []);
-          setVehicles(list.map(normaliseRecord));
+          const STATUS_ORDER = { unpaid: 0, in_review: 1, paid: 2, delivered: 3 };
+        const normalised = list.map(normaliseRecord);
+        if (tab === 'in_lot') {
+          normalised.sort((a, b) => (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9));
+        }
+        setVehicles(normalised);
         }
         if (pRes.status === 'fulfilled') {
           const raw = pRes.value.data.data;
@@ -223,7 +228,7 @@ function DashboardScreen({ onRegister, onAction }) {
 const VEHICLES_PAGE_SIZE = 25;
 const TAB_STATUS = { in_lot: 'in_lot', unpaid: 'active', in_review: 'in_review', paid: 'pending_delivery', delivered: 'completed' };
 
-function VehiclesScreen({ onRegister, user }) {
+function VehiclesScreen({ onRegister, user, refreshKey = 0 }) {
   const [vehicles, setVehicles] = useState([]);
   const [openRequestIds, setOpenRequestIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
@@ -277,7 +282,12 @@ function VehiclesScreen({ onRegister, user }) {
         const responseBody = vRes.value.data;
         const list = Array.isArray(responseBody?.data) ? responseBody.data : (responseBody?.data?.data || []);
         const serverMeta = responseBody?.meta || {};
-        setVehicles(list.map(normaliseRecord));
+        const STATUS_ORDER = { unpaid: 0, in_review: 1, paid: 2, delivered: 3 };
+        const normalised = list.map(normaliseRecord);
+        if (tab === 'in_lot') {
+          normalised.sort((a, b) => (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9));
+        }
+        setVehicles(normalised);
         setPageMeta(m => ({ ...m, ...serverMeta }));
       } else {
         setToast('Error al cargar vehículos');
@@ -290,7 +300,7 @@ function VehiclesScreen({ onRegister, user }) {
     } finally {
       setLoading(false);
     }
-  }, [tab, deferredQ, page, workdayChecked, activeWorkday]);
+  }, [tab, deferredQ, page, workdayChecked, activeWorkday, refreshKey]);
 
   useEffect(() => { fetchVehicles(); }, [fetchVehicles]);
 
@@ -311,10 +321,7 @@ function VehiclesScreen({ onRegister, user }) {
     setActionLoading(vehicle.id);
     try {
       if (statusId === 'delivered') {
-        const checkOutPayload = {};
-        const valetId = user?.id || vehicle.valetId;
-        if (valetId) checkOutPayload.checkOutValet = valetId;
-        await api.patch(`/vehicles/${vehicle.id}/checkout`, checkOutPayload);
+        await api.patch(`/vehicles/${vehicle.id}/checkout`, {});
       } else {
         await api.patch(`/vehicles/${vehicle.id}/status`, {
           status: uiStatusToApi(statusId),
@@ -760,6 +767,7 @@ function PaymentModal({ open, vehicle, onClose, onDone }) {
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState(null);
+  const [exchangeRate, setExchangeRate] = useState(null);
 
   useEffect(() => {
     if (!open) return;
@@ -770,6 +778,12 @@ function PaymentModal({ open, vehicle, onClose, onDone }) {
     setUploading(false);
     setErr(null);
     setMethodsErr(null);
+    setExchangeRate(null);
+
+    fetch('https://ve.dolarapi.com/v1/dolares/oficial')
+      .then(r => r.json())
+      .then(d => setExchangeRate(d.promedio ?? null))
+      .catch(() => {});
 
     api.get('/payments/methods')
       .then(res => {
@@ -823,6 +837,10 @@ function PaymentModal({ open, vehicle, onClose, onDone }) {
         fee: 0,
         validation: 'AUTOMATIC',
       };
+      if (exchangeRate) {
+        payload.exchangeRate = exchangeRate;
+        payload.amountBs = parseFloat(amountUSD) * exchangeRate;
+      }
       if (reference.trim()) payload.reference = reference.trim();
       if (image) payload.image = image;
 
@@ -877,6 +895,16 @@ function PaymentModal({ open, vehicle, onClose, onDone }) {
               required
             />
           </div>
+          {exchangeRate && (
+            <div style={{ fontSize: 12, color: 'var(--slate-400)', marginTop: -6, marginBottom: 2 }}>
+              Tasa: Bs {exchangeRate.toFixed(2)} / $1
+              {parseFloat(amountUSD) > 0 && (
+                <> · <strong style={{ color: 'var(--slate-300)' }}>
+                  Bs {(parseFloat(amountUSD) * exchangeRate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </strong></>
+              )}
+            </div>
+          )}
 
           <div className="field">
             <label>Referencia <span style={{ color: 'var(--slate-500)', fontWeight: 400 }}>(opcional)</span></label>
@@ -921,6 +949,34 @@ function PaymentModal({ open, vehicle, onClose, onDone }) {
 }
 
 /* ─── REGISTER VEHICLE MODAL — search owner via API, create if new ─── */
+function parseApiError(error) {
+  const msg = error?.response?.data?.message;
+  if (Array.isArray(msg)) {
+    const map = {
+      'email must be an email': 'El email ingresado no es válido.',
+      'email must be a string': 'El email ingresado no es válido.',
+    };
+    return msg.map(m => map[m] || m).join(' ');
+  }
+  return msg || 'Error al registrar vehículo';
+}
+
+const CAR_COLORS = [
+  { label: 'Blanco',    hex: '#FFFFFF' },
+  { label: 'Negro',     hex: '#111111' },
+  { label: 'Gris',      hex: '#6B7280' },
+  { label: 'Plata',     hex: '#C0C0C0' },
+  { label: 'Rojo',      hex: '#EF4444' },
+  { label: 'Azul',      hex: '#3B82F6' },
+  { label: 'Azul osc.', hex: '#1E3A5F' },
+  { label: 'Verde',     hex: '#22C55E' },
+  { label: 'Amarillo',  hex: '#EAB308' },
+  { label: 'Naranja',   hex: '#F97316' },
+  { label: 'Marrón',    hex: '#92400E' },
+  { label: 'Beige',     hex: '#D4B896' },
+  { label: 'Vino',      hex: '#7F1D1D' },
+];
+
 function RegisterVehicleModal({ open, onClose, onDone, user }) {
   const [valets, setValets] = useState([]);
   const [query, setQuery] = useState('');
@@ -936,6 +992,7 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
   const [carBrands, setCarBrands] = useState([]);   // fetched from API
   const [brandKey, setBrandKey] = useState('');      // '' | brand.name | '__manual__'
   const [modelKey, setModelKey] = useState('');      // '' | model.name | '__manual__'
+  const [errToast, setErrToast] = useState(null);
 
   // Load valets list when modal opens
   useEffect(() => {
@@ -960,6 +1017,12 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
       .then(res => setCarBrands(Array.isArray(res.data.data) ? res.data.data : []))
       .catch(() => setCarBrands([]));
   }, [open]);
+
+  useEffect(() => {
+    if (!errToast) return;
+    const t = setTimeout(() => setErrToast(null), 3000);
+    return () => clearTimeout(t);
+  }, [errToast]);
 
   const doSearch = async () => {
     if (!query.trim()) { setErr('Ingresa una cédula para buscar'); return; }
@@ -1041,7 +1104,9 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
       const plate = res.data.data?.plate || vehicle.plate;
       onDone?.({ plate });
     } catch (e) {
-      setErr(e.response?.data?.message || 'Error al registrar vehículo');
+      const msg = parseApiError(e);
+      setErr(msg);
+      setErrToast(msg);
     } finally {
       setSaving(false);
     }
@@ -1049,7 +1114,24 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
 
   const ownerVehicles = owner?.ownedVehicles || [];
 
+  const handleSelectPreviousVehicle = (vehicleId) => {
+    setSelectedVehicleId(vehicleId);
+    if (!vehicleId) {
+      setVehicle({ plate: '', brand: '', model: '', color: '' });
+      setBrandKey('');
+      setModelKey('');
+    } else {
+      const v = ownerVehicles.find(v => v.id === vehicleId);
+      if (v) {
+        setVehicle({ plate: v.plate ?? '', brand: v.brand ?? '', model: v.model ?? '', color: v.color ?? '' });
+        setBrandKey(v.brand ?? '');
+        setModelKey(v.model ?? '');
+      }
+    }
+  };
+
   const handleBrandChange = (val) => {
+    setSelectedVehicleId('');
     if (val === '__manual__') {
       setBrandKey('__manual__');
       setModelKey('__manual__');
@@ -1062,6 +1144,7 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
   };
 
   const handleModelChange = (val) => {
+    setSelectedVehicleId('');
     if (val === '__manual__') {
       setModelKey('__manual__');
       setVehicle(v => ({ ...v, model: '' }));
@@ -1075,6 +1158,7 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
   const availableModels = selectedBrandObj ? selectedBrandObj.models : [];
 
   return (
+    <>
     <Modal
       open={open} onClose={onClose}
       title="Registrar vehículo"
@@ -1094,10 +1178,11 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
             <div style={{ position: 'relative', flex: 1 }}>
               <Icon name="search" size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--slate-500)' }} />
               <input
-                placeholder="Cédula del cliente (ej: V-12345678)"
+                placeholder="Cédula del cliente (ej: 12345678)"
                 value={query}
-                onChange={e => setQuery(e.target.value)}
+                onChange={e => setQuery(e.target.value.replace(/[^0-9]/g, ''))}
                 onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), doSearch())}
+                inputMode="numeric"
                 autoFocus
                 style={{ width: '100%', padding: '11px 14px 11px 36px', borderRadius: 10, background: 'var(--slate-800)', border: '1px solid var(--slate-700)', color: '#fff', fontSize: 14, fontFamily: 'inherit' }}
               />
@@ -1139,7 +1224,7 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
             {ownerVehicles.length > 0 && (
               <div className="field" style={{ marginTop: 12 }}>
                 <label>Vehículo previo (opcional)</label>
-                <select value={selectedVehicleId} onChange={e => setSelectedVehicleId(e.target.value)} style={{ background: 'var(--slate-800)', border: '1px solid var(--slate-700)', borderRadius: 8, color: '#fff', padding: '10px 12px', width: '100%', fontFamily: 'inherit' }}>
+                <select value={selectedVehicleId} onChange={e => handleSelectPreviousVehicle(e.target.value)} style={{ background: 'var(--slate-800)', border: '1px solid var(--slate-700)', borderRadius: 8, color: '#fff', padding: '10px 12px', width: '100%', fontFamily: 'inherit' }}>
                   <option value="">— Nuevo vehículo —</option>
                   {ownerVehicles.map(v => (
                     <option key={v.id} value={v.id}>{v.plate} · {v.brand} {v.model} ({v.color})</option>
@@ -1154,7 +1239,7 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
           <div className="reg-new-owner">
             <div className="grid-2" style={{ gap: 12 }}>
               <div className="field"><label>Nombre completo</label>
-                <input value={newOwner.name} onChange={e => setNewOwner(n => ({ ...n, name: e.target.value }))} placeholder="Juan Pérez" required />
+                <input value={newOwner.name} onChange={e => setNewOwner(n => ({ ...n, name: e.target.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚüÜñÑ\s]/g, '') }))} placeholder="Juan Pérez" required />
               </div>
               <div className="field"><label>Cédula</label>
                 <input value={newOwner.idNumber} onChange={e => setNewOwner(n => ({ ...n, idNumber: e.target.value }))} placeholder="V-12.345.678" required />
@@ -1164,7 +1249,7 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
                   style={contactMissing && !newOwner.email?.trim() ? { borderColor: '#F87171' } : undefined} />
               </div>
               <div className="field"><label>Teléfono</label>
-                <input value={newOwner.phone} onChange={e => setNewOwner(n => ({ ...n, phone: e.target.value }))} placeholder="+58 414 000 0000"
+                <input value={newOwner.phone} onChange={e => setNewOwner(n => ({ ...n, phone: e.target.value.replace(/[^0-9+\s-]/g, '') }))} placeholder="+58 414 000 0000" inputMode="tel"
                   style={contactMissing && !newOwner.phone?.trim() ? { borderColor: '#F87171' } : undefined} />
               </div>
               {contactMissing && (
@@ -1184,12 +1269,11 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
       }}>
         <div className="reg-section-label">2 · Vehículo</div>
 
-        {!(owner && selectedVehicleId) && (
-          <div className="grid-2" style={{ gap: 12 }}>
+        <div className="grid-2" style={{ gap: 12 }}>
             <div className="field"><label>Placa</label>
               <input
                 value={vehicle.plate}
-                onChange={e => setVehicle(v => ({ ...v, plate: e.target.value.toUpperCase() }))}
+                onChange={e => { setSelectedVehicleId(''); setVehicle(v => ({ ...v, plate: e.target.value.toUpperCase() })); }}
                 placeholder="ABC-123"
                 required
                 style={plateInvalid ? { borderColor: '#F87171' } : undefined}
@@ -1200,8 +1284,43 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
                 </span>
               )}
             </div>
-            <div className="field"><label>Color</label>
-              <input value={vehicle.color} onChange={e => setVehicle(v => ({ ...v, color: e.target.value }))} placeholder="Negro" />
+            <div className="field" style={{ gridColumn: '1 / -1' }}>
+              <label>Color</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6, marginBottom: 6 }}>
+                {CAR_COLORS.map(c => (
+                  <button
+                    key={c.label}
+                    type="button"
+                    title={c.label}
+                    onClick={() => { setSelectedVehicleId(''); setVehicle(v => ({ ...v, color: c.label })); }}
+                    style={{
+                      width: 28, height: 28, borderRadius: '50%',
+                      border: vehicle.color === c.label ? '3px solid #60A5FA' : '2px solid var(--slate-600)',
+                      background: c.hex, cursor: 'pointer', flexShrink: 0,
+                    }}
+                  />
+                ))}
+                <button
+                  type="button"
+                  onClick={() => { setSelectedVehicleId(''); setVehicle(v => ({ ...v, color: '' })); }}
+                  style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid var(--slate-600)', background: 'transparent', color: 'var(--slate-300)', cursor: 'pointer' }}
+                >
+                  Otro
+                </button>
+              </div>
+              {vehicle.color && CAR_COLORS.find(c => c.label === vehicle.color) && (
+                <div style={{ fontSize: 12, color: 'var(--slate-400)', marginBottom: 4 }}>
+                  Seleccionado: <strong style={{ color: 'var(--slate-200)' }}>{vehicle.color}</strong>
+                </div>
+              )}
+              {(!vehicle.color || !CAR_COLORS.find(c => c.label === vehicle.color)) && (
+                <input
+                  value={vehicle.color}
+                  onChange={e => { setSelectedVehicleId(''); setVehicle(v => ({ ...v, color: e.target.value })); }}
+                  placeholder="Escribe el color"
+                  style={{ marginTop: 4 }}
+                />
+              )}
             </div>
             {/* MARCA */}
             <div className="field">
@@ -1274,7 +1393,6 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
               )}
             </div>
           </div>
-        )}
 
         {valets.length > 0 && (
           <div className="field" style={{ marginTop: 12 }}>
@@ -1286,6 +1404,8 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
         )}
       </div>
     </Modal>
+    <Toast message={errToast} tone="error" />
+    </>
   );
 }
 

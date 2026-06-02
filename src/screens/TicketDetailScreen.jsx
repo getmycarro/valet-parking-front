@@ -34,6 +34,7 @@ export default function TicketDetailScreen({ user }) {
   const [uploadingRef, setUploadingRef] = useState(false);
   const [uploadRefError, setUploadRefError] = useState(null);
   const [lightboxSrc, setLightboxSrc] = useState(null);
+  const [showBs, setShowBs] = useState(false);
 
   const fetchVehicle = useCallback(async () => {
     setLoading(true);
@@ -113,9 +114,7 @@ export default function TicketDetailScreen({ user }) {
     setStatusError(null);
     try {
       if (newUiStatus === 'delivered') {
-        const payload = {};
-        if (user?.id) payload.checkOutValet = user.id;
-        await api.patch(`/vehicles/${id}/checkout`, payload);
+        await api.patch(`/vehicles/${id}/checkout`, {});
       } else {
         await api.patch(`/vehicles/${id}/status`, { status: uiStatusToApi(newUiStatus) });
       }
@@ -260,7 +259,17 @@ export default function TicketDetailScreen({ user }) {
         </div>
 
         <div className="glass" style={{ padding: 24 }}>
-          <h4 style={{ margin: '0 0 16px', fontSize: 15, color: 'var(--slate-300)' }}>Pagos</h4>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <h4 style={{ margin: 0, fontSize: 15, color: 'var(--slate-300)' }}>Pagos</h4>
+            {v.payments?.length > 0 && (
+              <button
+                onClick={() => setShowBs(s => !s)}
+                style={{ fontSize: 12, padding: '3px 10px', borderRadius: 6, border: '1px solid var(--slate-600)', background: 'transparent', color: 'var(--slate-300)', cursor: 'pointer' }}
+              >
+                {showBs ? 'Ver en $' : 'Ver en Bs'}
+              </button>
+            )}
+          </div>
           {paymentError && (
             <div style={{ color: '#F87171', fontSize: 13, marginBottom: 12, padding: '8px 12px', background: 'rgba(248,113,113,0.1)', borderRadius: 8 }}>
               {paymentError}
@@ -279,7 +288,17 @@ export default function TicketDetailScreen({ user }) {
                     <React.Fragment key={p.id}>
                       <tr>
                         <td>{p.paymentMethod?.name || '—'}</td>
-                        <td>${p.amountUSD}</td>
+                        <td>
+                          {showBs && p.amountBs != null
+                            ? `Bs ${Number(p.amountBs).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                            : showBs && p.exchangeRate != null
+                              ? `Bs ${(p.amountUSD * p.exchangeRate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                              : `$${p.amountUSD}`}
+                          {showBs && p.exchangeRate != null && (
+                            <div style={{ fontSize: 11, color: 'var(--slate-500)', marginTop: 2 }}>tasa {p.exchangeRate.toFixed(2)}</div>
+                          )}
+                          {showBs && p.exchangeRate == null && <span style={{ fontSize: 11, color: 'var(--slate-500)' }}> (sin tasa)</span>}
+                        </td>
                         <td>{p.reference || '—'}</td>
                         <td>
                           <Badge tone={p.status === 'RECEIVED' ? 'green' : p.status === 'CANCELLED' ? 'red' : 'yellow'}>

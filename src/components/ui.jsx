@@ -323,6 +323,12 @@ function PageHead({ title, subtitle, actions }) {
 }
 
 function Modal({ open, onClose, title, description, children, footer }) {
+  useEffect(() => {
+    if (!open) return;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, [open]);
+
   if (!open) return null;
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -338,11 +344,13 @@ function Modal({ open, onClose, title, description, children, footer }) {
   );
 }
 
-function Toast({ message }) {
+function Toast({ message, tone = 'success' }) {
   if (!message) return null;
   return (
-    <div className="toast success">
-      <span className="ico" style={{ display: 'grid', placeItems: 'center' }}><Icon name="check" size={18} /></span>
+    <div className={`toast ${tone}`}>
+      <span className="ico" style={{ display: 'grid', placeItems: 'center' }}>
+        <Icon name={tone === 'error' ? 'x-circle' : 'check'} size={18} />
+      </span>
       {message}
     </div>
   );

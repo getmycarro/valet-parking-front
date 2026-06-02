@@ -36,6 +36,7 @@ const ICON_PATHS = {
   file: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></>,
   chevronDown: <><polyline points="6 9 12 15 18 9" /></>,
   qr: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 14h2v2h-2zM18 14h3v3h-3zM14 18h2v3h-2zM18 18.5v2.5h3" /></>,
+  'x-circle': <><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></>,
 };
 
 function Icon({ name, size = 18, strokeWidth = 2, className = "", style }) {

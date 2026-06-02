@@ -325,10 +325,7 @@ function AttendantDashboard({ user, onLogout }) {
     setActionLoading(vehicle.id);
     try {
       if (statusId === 'delivered') {
-        const checkOutPayload = {};
-        const valetId = user?.id || vehicle.valetId;
-        if (valetId) checkOutPayload.checkOutValet = valetId;
-        await api.patch(`/vehicles/${vehicle.id}/checkout`, checkOutPayload);
+        await api.patch(`/vehicles/${vehicle.id}/checkout`, {});
       } else {
         await api.patch(`/vehicles/${vehicle.id}/status`, {
           status: uiStatusToApi(statusId),

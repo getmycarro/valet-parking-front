@@ -38,6 +38,7 @@ export default function AdminApp() {
   const [registerOpen, setRegisterOpen] = useState(false);
   const [toast, setToast]             = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [vehiclesRefreshKey, setVehiclesRefreshKey] = useState(0);
   const navigate                      = useNavigate();
   const location                      = useLocation();
 
@@ -89,7 +90,7 @@ export default function AdminApp() {
 
   let body = null;
   if (active === 'dashboard')      body = <DashboardScreen onRegister={openReg} />;
-  else if (active === 'vehicles')  body = <VehiclesScreen  onRegister={openReg} user={user} />;
+  else if (active === 'vehicles')  body = <VehiclesScreen  onRegister={openReg} user={user} refreshKey={vehiclesRefreshKey} />;
   else if (active === 'employees') body = <EmployeesScreen />;
   else if (active === 'companies') body = <CompaniesScreen />;
   else if (active === 'users')     body = <UsersScreen />;
@@ -139,7 +140,7 @@ export default function AdminApp() {
         open={registerOpen}
         onClose={() => setRegisterOpen(false)}
         user={user}
-        onDone={({ plate }) => { setRegisterOpen(false); setToast(`Vehículo ${plate} registrado`); }}
+        onDone={({ plate }) => { setRegisterOpen(false); setToast(`Vehículo ${plate} registrado`); setVehiclesRefreshKey(k => k + 1); }}
       />
       <Toast message={toast} />
     </div>
