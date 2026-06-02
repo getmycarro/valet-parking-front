@@ -11,6 +11,7 @@ import { NotificationsScreen } from '../screens/NotificationsScreen.jsx';
 import WorkdaysScreen from '../screens/WorkdaysScreen.jsx';
 import { Sidebar, Topbar, PageHead, Toast } from '../components/ui.jsx';
 import { Icon } from '../components/icons.jsx';
+import { useTheme } from '../hooks/useTheme.js';
 
 const TITLES = {
   dashboard: 'Dashboard',
@@ -33,6 +34,7 @@ const ROLE_DEFAULT_NAV = {
 };
 
 export default function AdminApp() {
+  const { isDark, toggle } = useTheme();
   const [user, setUser]               = useState(null);
   const [active, setActive]           = useState('dashboard');
   const [registerOpen, setRegisterOpen] = useState(false);
@@ -123,8 +125,8 @@ export default function AdminApp() {
       <main className="shell-main">
         <Topbar
           title={TITLES[active] || active}
-          isDark={true}
-          onToggleTheme={() => {}}
+          isDark={isDark}
+          onToggleTheme={toggle}
           user={user}
           onNavNotifications={() => handleNav('notifications')}
           onMenuToggle={() => setSidebarOpen(v => !v)}

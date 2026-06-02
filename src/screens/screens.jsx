@@ -1413,7 +1413,7 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
 /* ─── REPORTS SCREEN ─────────────────────────────────── */
 function ReportsScreen() {
   const today = new Date();
-  const [viewMode, setViewMode] = useState('daily'); // 'daily' | 'monthly'
+  const [viewMode, setViewMode] = useState('daily'); // 'daily' | 'monthly' | 'jornada'
   const [selectedMonth, setSelectedMonth] = useState(
     `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
   );
@@ -1425,6 +1425,15 @@ function ReportsScreen() {
   const [exportStatus, setExportStatus] = useState('');
   const [downloading, setDownloading] = useState(false);
   const [exportErr, setExportErr] = useState(null);
+  // Jornada tab state
+  const [workdayMode, setWorkdayMode] = useState('range'); // 'range' | 'single'
+  const [workdayReport, setWorkdayReport] = useState([]);
+  const [workdayLoading, setWorkdayLoading] = useState(false);
+  const [workdays, setWorkdays] = useState([]);
+  const [selectedWorkdayId, setSelectedWorkdayId] = useState('');
+  const [workdayDateFrom, setWorkdayDateFrom] = useState('');
+  const [workdayDateTo, setWorkdayDateTo] = useState('');
+  const [workdayDownloading, setWorkdayDownloading] = useState(false);
 
   // Compute date range for the current view
   const getDateRange = () => {
@@ -1444,6 +1453,7 @@ function ReportsScreen() {
   };
 
   useEffect(() => {
+    if (viewMode === 'jornada') return;
     const { dateFrom, dateTo } = getDateRange();
     setLoading(true);
     api.get('/payments', { params: { dateFrom, dateTo, limit: 5000, status: 'RECEIVED' } })
@@ -1455,6 +1465,25 @@ function ReportsScreen() {
       .catch(() => setPayments([]))
       .finally(() => setLoading(false));
   }, [viewMode, selectedMonth, selectedYear]);
+
+  // Load workdays list for the selector when switching to jornada view
+  useEffect(() => {
+    if (viewMode !== 'jornada') return;
+    if (workdays.length > 0) return;
+    Promise.allSettled([
+      api.get('/workdays', { params: { limit: 50, status: 'CLOSED' } }),
+      api.get('/workdays/active'),
+    ]).then(([closedRes, activeRes]) => {
+      const closed = closedRes.status === 'fulfilled'
+        ? (() => { const raw = closedRes.value.data?.data; return Array.isArray(raw) ? raw : (raw?.data || []); })()
+        : [];
+      const active = activeRes.status === 'fulfilled' && activeRes.value.data?.data
+        ? [activeRes.value.data.data]
+        : [];
+      // Active first, then closed sorted newest-first
+      setWorkdays([...active, ...closed]);
+    });
+  }, [viewMode]);
 
   // Aggregate by day (1-31) or month (0-11)
   const aggregated = (() => {
@@ -1519,7 +1548,58 @@ function ReportsScreen() {
     ? new Date(selectedMonth + '-15').toLocaleDateString('es-VE', { month: 'long', year: 'numeric' })
     : selectedYear;
 
-  // XLSX download
+  // Jornada: fetch report
+  const fetchWorkdayReport = async () => {
+    setWorkdayLoading(true);
+    try {
+      let params = '';
+      if (workdayMode === 'single' && selectedWorkdayId) {
+        params = `workdayId=${selectedWorkdayId}`;
+      } else if (workdayMode === 'range' && (workdayDateFrom || workdayDateTo)) {
+        const parts = [];
+        if (workdayDateFrom) parts.push(`dateFrom=${workdayDateFrom}`);
+        if (workdayDateTo) parts.push(`dateTo=${workdayDateTo}`);
+        params = parts.join('&');
+      }
+      if (!params) return;
+      const res = await api.get(`/workdays/report?${params}`);
+      const data = res.data?.data ?? res.data ?? [];
+      setWorkdayReport(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setWorkdayLoading(false);
+    }
+  };
+
+  // Jornada: download XLSX
+  const downloadWorkdayXlsx = async () => {
+    setWorkdayDownloading(true);
+    try {
+      let params = '';
+      if (workdayMode === 'single' && selectedWorkdayId) {
+        params = `workdayId=${selectedWorkdayId}`;
+      } else {
+        const parts = [];
+        if (workdayDateFrom) parts.push(`dateFrom=${workdayDateFrom}`);
+        if (workdayDateTo) parts.push(`dateTo=${workdayDateTo}`);
+        params = parts.join('&');
+      }
+      const res = await api.get(`/workdays/export?${params}`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `reporte_jornadas.xlsx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setWorkdayDownloading(false);
+    }
+  };
+
+  // Payments XLSX download
   const downloadXlsx = async () => {
     if (!exportDateFrom || !exportDateTo) { setExportErr('Selecciona un rango de fechas'); return; }
     setDownloading(true);
@@ -1561,55 +1641,168 @@ function ReportsScreen() {
                 {mode === 'daily' ? 'Por día' : 'Por mes'}
               </button>
             ))}
+            <button
+              onClick={() => setViewMode('jornada')}
+              className={`btn ${viewMode === 'jornada' ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ padding: '8px 18px', fontSize: 13 }}
+            >
+              Por Jornada
+            </button>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <button className="btn btn-ghost" onClick={prevPeriod} style={{ padding: '6px 12px' }}>‹</button>
-            <span style={{ fontWeight: 600, color: '#fff', minWidth: 140, textAlign: 'center', textTransform: 'capitalize' }}>
-              {periodLabel}
-            </span>
-            <button className="btn btn-ghost" onClick={nextPeriod} style={{ padding: '6px 12px' }}>›</button>
-          </div>
-        </div>
-
-        {/* KPI row */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
-          {[
-            { label: 'Total cobrado', value: `$${totalEarned.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
-            { label: 'Pagos recibidos', value: payments.length },
-            { label: 'Promedio por pago', value: `$${avgPayment.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
-          ].map(k => (
-            <div key={k.label} style={{ background: 'var(--slate-800)', borderRadius: 12, padding: '16px 20px' }}>
-              <div style={{ fontSize: 12, color: 'var(--slate-400)', marginBottom: 6 }}>{k.label}</div>
-              <div style={{ fontSize: 22, fontWeight: 700, color: '#fff', fontFamily: 'var(--font-display)' }}>{k.value}</div>
+          {viewMode !== 'jornada' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <button className="btn btn-ghost" onClick={prevPeriod} style={{ padding: '6px 12px' }}>‹</button>
+              <span style={{ fontWeight: 600, color: '#fff', minWidth: 140, textAlign: 'center', textTransform: 'capitalize' }}>
+                {periodLabel}
+              </span>
+              <button className="btn btn-ghost" onClick={nextPeriod} style={{ padding: '6px 12px' }}>›</button>
             </div>
-          ))}
+          )}
         </div>
 
-        {/* Bar chart */}
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: 40, color: 'var(--slate-400)' }}>Cargando datos…</div>
+        {viewMode === 'jornada' ? (
+          <div>
+            {/* Jornada sub-mode toggle */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+              <button
+                onClick={() => setWorkdayMode('range')}
+                className={workdayMode === 'range' ? 'btn btn-primary' : 'btn btn-ghost'}
+                style={{ fontSize: 13, padding: '6px 14px', borderRadius: 20 }}
+              >
+                Rango de fechas
+              </button>
+              <button
+                onClick={() => setWorkdayMode('single')}
+                className={workdayMode === 'single' ? 'btn btn-primary' : 'btn btn-ghost'}
+                style={{ fontSize: 13, padding: '6px 14px', borderRadius: 20 }}
+              >
+                Una jornada
+              </button>
+            </div>
+
+            {workdayMode === 'range' ? (
+              <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+                <input type="date" value={workdayDateFrom} onChange={e => setWorkdayDateFrom(e.target.value)}
+                  className="input" style={{ width: 160 }} />
+                <input type="date" value={workdayDateTo} onChange={e => setWorkdayDateTo(e.target.value)}
+                  className="input" style={{ width: 160 }} />
+              </div>
+            ) : (
+              <div style={{ marginBottom: 16 }}>
+                <select value={selectedWorkdayId} onChange={e => setSelectedWorkdayId(e.target.value)}
+                  className="input" style={{ width: 280 }}>
+                  <option value="">— Seleccionar jornada —</option>
+                  {workdays.map(w => (
+                    <option key={w.id} value={w.id}>
+                      {new Date(w.openedAt).toLocaleString('es-VE', { dateStyle: 'short', timeStyle: 'short' })}
+                      {w.status === 'ACTIVE' ? ' (Activa)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+              <button onClick={fetchWorkdayReport} className="btn btn-primary" style={{ fontSize: 13 }}
+                disabled={workdayLoading}>
+                {workdayLoading ? 'Cargando...' : 'Generar reporte'}
+              </button>
+              <button onClick={downloadWorkdayXlsx} className="btn btn-secondary" style={{ fontSize: 13 }}
+                disabled={workdayDownloading || workdayReport.length === 0}>
+                {workdayDownloading ? 'Descargando...' : 'Descargar XLSX'}
+              </button>
+            </div>
+
+            {/* Results table */}
+            {workdayReport.length > 0 && (() => {
+              const sumUSD = workdayReport.reduce((s, r) => s + r.totalUSD, 0);
+              const sumBs  = workdayReport.reduce((s, r) => s + r.totalBs, 0);
+              const fmtDate = (d) => d ? new Date(d).toLocaleString('es-VE', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+              const fmtNum  = (n) => typeof n === 'number' ? n.toFixed(2) : '—';
+              return (
+                <div className="glass" style={{ borderRadius: 12, overflow: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ background: 'rgba(255,255,255,0.05)' }}>
+                        {['Apertura','Cierre','Tickets','Pagos','Total USD','Total Bs','Tasa Prom.'].map(h => (
+                          <th key={h} style={{ padding: '10px 14px', textAlign: 'left', color: 'var(--admin-text-2)', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {workdayReport.map((r, i) => (
+                        <tr key={r.id} style={{ borderTop: '1px solid rgba(255,255,255,0.06)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)' }}>
+                          <td style={{ padding: '10px 14px', color: 'var(--admin-text-1)', whiteSpace: 'nowrap' }}>{fmtDate(r.openedAt)}</td>
+                          <td style={{ padding: '10px 14px', color: 'var(--admin-text-3)', whiteSpace: 'nowrap' }}>{fmtDate(r.closedAt)}</td>
+                          <td style={{ padding: '10px 14px', color: 'var(--admin-text-1)' }}>{r.ticketsTotal}</td>
+                          <td style={{ padding: '10px 14px', color: 'var(--admin-text-1)' }}>{r.paymentsCount}</td>
+                          <td style={{ padding: '10px 14px', color: '#22c55e', fontWeight: 600 }}>${fmtNum(r.totalUSD)}</td>
+                          <td style={{ padding: '10px 14px', color: '#60a5fa', fontWeight: 600 }}>Bs {fmtNum(r.totalBs)}</td>
+                          <td style={{ padding: '10px 14px', color: 'var(--admin-text-3)' }}>{r.avgExchangeRate ? fmtNum(r.avgExchangeRate) : '—'}</td>
+                        </tr>
+                      ))}
+                      {/* Totals row */}
+                      <tr style={{ borderTop: '2px solid rgba(255,255,255,0.15)', background: 'rgba(99,102,241,0.08)' }}>
+                        <td colSpan={4} style={{ padding: '10px 14px', color: 'var(--admin-text-1)', fontWeight: 700 }}>TOTALES</td>
+                        <td style={{ padding: '10px 14px', color: '#22c55e', fontWeight: 700 }}>${sumUSD.toFixed(2)}</td>
+                        <td style={{ padding: '10px 14px', color: '#60a5fa', fontWeight: 700 }}>Bs {sumBs.toFixed(2)}</td>
+                        <td></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()}
+
+            {!workdayLoading && workdayReport.length === 0 && (
+              <div className="glass" style={{ padding: 40, textAlign: 'center', color: 'var(--admin-text-3)', fontSize: 14, borderRadius: 12 }}>
+                Selecciona un filtro y presiona "Generar reporte"
+              </div>
+            )}
+          </div>
         ) : (
           <>
-            <div className="chart" style={{ alignItems: 'flex-end', position: 'relative' }}>
-              {aggregated.map((d, i) => {
-                const pct = Math.max((d.value / maxValue) * 100, d.value > 0 ? 4 : 1);
-                return (
-                  <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, height: '100%', justifyContent: 'flex-end' }} title={`$${d.value.toFixed(2)}`}>
-                    <div
-                      className={`chart-bar${i % 2 === 0 ? '' : ' alt'}`}
-                      style={{ height: `${pct}%`, width: '100%', opacity: d.value > 0 ? 0.85 : 0.2 }}
-                    />
-                  </div>
-                );
-              })}
+            {/* KPI row */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
+              {[
+                { label: 'Total cobrado', value: `$${totalEarned.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+                { label: 'Pagos recibidos', value: payments.length },
+                { label: 'Promedio por pago', value: `$${avgPayment.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+              ].map(k => (
+                <div key={k.label} style={{ background: 'var(--slate-800)', borderRadius: 12, padding: '16px 20px' }}>
+                  <div style={{ fontSize: 12, color: 'var(--slate-400)', marginBottom: 6 }}>{k.label}</div>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: '#fff', fontFamily: 'var(--font-display)' }}>{k.value}</div>
+                </div>
+              ))}
             </div>
-            <div className="chart-labels" style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0 0', overflowX: 'hidden' }}>
-              {aggregated
-                .filter((_, i) => aggregated.length <= 12 || i % Math.ceil(aggregated.length / 12) === 0)
-                .map((d, i) => (
-                  <span key={i} style={{ fontSize: 11, color: 'var(--slate-500)' }}>{d.label}</span>
-                ))}
-            </div>
+
+            {/* Bar chart */}
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: 40, color: 'var(--slate-400)' }}>Cargando datos…</div>
+            ) : (
+              <>
+                <div className="chart" style={{ alignItems: 'flex-end', position: 'relative' }}>
+                  {aggregated.map((d, i) => {
+                    const pct = Math.max((d.value / maxValue) * 100, d.value > 0 ? 4 : 1);
+                    return (
+                      <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, height: '100%', justifyContent: 'flex-end' }} title={`$${d.value.toFixed(2)}`}>
+                        <div
+                          className={`chart-bar${i % 2 === 0 ? '' : ' alt'}`}
+                          style={{ height: `${pct}%`, width: '100%', opacity: d.value > 0 ? 0.85 : 0.2 }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="chart-labels" style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0 0', overflowX: 'hidden' }}>
+                  {aggregated
+                    .filter((_, i) => aggregated.length <= 12 || i % Math.ceil(aggregated.length / 12) === 0)
+                    .map((d, i) => (
+                      <span key={i} style={{ fontSize: 11, color: 'var(--slate-500)' }}>{d.label}</span>
+                    ))}
+                </div>
+              </>
+            )}
           </>
         )}
       </div>

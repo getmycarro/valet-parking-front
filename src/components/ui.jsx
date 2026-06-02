@@ -105,20 +105,22 @@ function Topbar({ title, onToggleTheme, isDark, user, onNavNotifications, onMenu
   useEffect(() => {
     if (!user) return;
 
-    const fetchCount = () => {
-      api.get('/notifications/unread-count')
-        .then(res => {
-          const d = res.data.data;
-          // API may return { count: N } or just a number
-          const count = typeof d === 'number' ? d : (d?.count ?? d?.unreadCount ?? 0);
-          setUnreadCount(count);
-        })
-        .catch(() => {}); // Silently ignore — badge is non-critical
-    };
+    // Initial count fetch
+    api.get('/notifications/unread-count')
+      .then(res => {
+        const d = res.data.data;
+        setUnreadCount(typeof d === 'number' ? d : (d?.count ?? d?.unreadCount ?? 0));
+      })
+      .catch(() => {});
 
-    fetchCount();
-    const interval = setInterval(fetchCount, 30000);
-    return () => clearInterval(interval);
+    // SSE: real-time badge updates without polling
+    const token = localStorage.getItem('gmc_token');
+    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+    const es = new EventSource(`${baseUrl}/notifications/stream?token=${encodeURIComponent(token)}`);
+
+    es.onmessage = () => setUnreadCount(c => c + 1);
+
+    return () => es.close();
   }, [user]);
 
   const fetchNotifications = useCallback(async () => {
