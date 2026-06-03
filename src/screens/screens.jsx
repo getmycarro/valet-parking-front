@@ -503,7 +503,8 @@ function EmployeeFormModal({ open, onClose, onSave, onDelete, employee }) {
     try {
       await onSave(form);
     } catch (err) {
-      setFormErr(err.response?.data?.message || 'Error al guardar empleado');
+      const msg = err.response?.data?.message;
+      setFormErr(Array.isArray(msg) ? msg[0] : (msg || 'Error al guardar empleado'));
     } finally {
       setSaving(false);
     }
@@ -611,7 +612,7 @@ function EmployeesScreen() {
 
   const remove = async (emp) => {
     if (!confirm(`¿Eliminar a ${emp.name}?`)) return;
-    const type = emp.type === 'VALET' ? 'VALET' : 'ATTENDANT';
+    const type = emp.type;
     try {
       await api.delete(`/employees/${emp.id}?type=${type}`);
       setToast(`Empleado ${emp.name} eliminado`);
