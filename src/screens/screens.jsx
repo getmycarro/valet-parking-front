@@ -442,6 +442,7 @@ function VehiclesScreen({ onRegister, user, refreshKey = 0 }) {
                   </th>
                   <th>Estado</th>
                   <th></th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>

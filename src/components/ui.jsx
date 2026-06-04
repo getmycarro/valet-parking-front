@@ -26,6 +26,7 @@ function StatusSelect({ v, onAction, disabled }) {
   );
 }
 import api from '../lib/api.js';
+import { generateTicketHTML } from '../lib/printTicket.js';
 
 /* Admin UI kit — composite components */
 
@@ -376,6 +377,16 @@ function Toast({ message, tone = 'success' }) {
 function VehicleRow({ v, owner, onAction, disabled, hasOpenRequest }) {
   const meta = STATUS_META[v.status] || STATUS_META.in_lot;
   const actions = nextActions(v.status);
+
+  function handlePrint(e) {
+    e.stopPropagation();
+    const html = generateTicketHTML(v);
+    const win = window.open('', '_blank', 'width=820,height=640');
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+  }
+
   return (
     <tr>
       <td>
@@ -419,6 +430,16 @@ function VehicleRow({ v, owner, onAction, disabled, hasOpenRequest }) {
               </button>
             ))
           : null}
+      </td>
+      <td>
+        <button
+          className="btn btn-ghost"
+          onClick={handlePrint}
+          title="Imprimir ticket"
+          style={{ padding: '4px 8px' }}
+        >
+          <Icon name="printer" size={14} />
+        </button>
       </td>
     </tr>
   );
