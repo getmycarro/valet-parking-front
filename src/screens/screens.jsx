@@ -1117,7 +1117,7 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
         payload.color    = vehicle.color;
       }
 
-      if (valetId) payload.valedId = valetId; // note: API field is "valedId" (typo in DTO)
+      if (valetId) payload.valetId = valetId;
 
       const res = await api.post('/vehicles/register', payload);
       const plate = res.data.data?.plate || vehicle.plate;
@@ -1279,6 +1279,13 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
                 >
                   Cambiar
                 </button>
+              </div>
+            )}
+
+            {ownerVehicles.length === 0 && !selectedVehicleId && (
+              <div className="reg-hint" style={{ marginTop: 10 }}>
+                <Icon name="car" size={14} />
+                <span>Sin vehículos previos. Completa los datos del vehículo en la sección siguiente.</span>
               </div>
             )}
           </>
