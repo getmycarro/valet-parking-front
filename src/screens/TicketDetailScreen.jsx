@@ -35,6 +35,8 @@ export default function TicketDetailScreen({ user }) {
   const [uploadRefError, setUploadRefError] = useState(null);
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const [showBs, setShowBs] = useState(false);
+  const [callLoading, setCallLoading] = useState(false);
+  const [callError, setCallError] = useState(null);
 
   const fetchVehicle = useCallback(async () => {
     setLoading(true);
@@ -125,6 +127,18 @@ export default function TicketDetailScreen({ user }) {
       setStatusUpdating(false);
     }
   };
+
+  async function handleCallToCounter() {
+    setCallLoading(true);
+    setCallError(null);
+    try {
+      await api.post('/notifications/approach-counter', { parkingRecordId: id });
+    } catch (e) {
+      setCallError(e?.response?.data?.message ?? 'No se pudo enviar la notificación.');
+    } finally {
+      setCallLoading(false);
+    }
+  }
 
   const handleReferenceUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -219,6 +233,18 @@ export default function TicketDetailScreen({ user }) {
             </select>
             {statusUpdating && <div style={{ fontSize: 11, color: 'var(--slate-400)', marginTop: 4 }}>Guardando…</div>}
             {statusError && <div style={{ fontSize: 11, color: '#F87171', marginTop: 4 }}>{statusError}</div>}
+            {vehicle && vehicle.status !== 'delivered' && user?.role !== 'CLIENT' && (
+              <div style={{ marginTop: '0.75rem' }}>
+                <button
+                  className="btn btn-secondary"
+                  onClick={handleCallToCounter}
+                  disabled={callLoading}
+                >
+                  {callLoading ? 'Enviando…' : 'Llamar a caja'}
+                </button>
+                {callError && <div style={{ fontSize: 11, color: '#F87171', marginTop: 4 }}>{callError}</div>}
+              </div>
+            )}
           </div>
           <div>
             <div style={{ color: 'var(--slate-400)', fontSize: 12, marginBottom: 4 }}>Vehículo</div>

@@ -230,7 +230,6 @@ const TAB_STATUS = { in_lot: 'in_lot', unpaid: 'active', in_review: 'in_review',
 
 function VehiclesScreen({ onRegister, user, refreshKey = 0 }) {
   const [vehicles, setVehicles] = useState([]);
-  const [openRequestIds, setOpenRequestIds] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
   const [deferredQ, setDeferredQ] = useState('');
@@ -242,6 +241,8 @@ function VehiclesScreen({ onRegister, user, refreshKey = 0 }) {
   const [paymentTarget, setPaymentTarget] = useState(null);
   const [activeWorkday, setActiveWorkday] = useState(null);
   const [workdayChecked, setWorkdayChecked] = useState(false);
+  const [sortBy, setSortBy] = useState(null);
+  const [sortOrder, setSortOrder] = useState('asc');
 
   useEffect(() => {
     api.get('/workdays/active')
@@ -274,33 +275,22 @@ function VehiclesScreen({ onRegister, user, refreshKey = 0 }) {
     try {
       const params = { page, limit: VEHICLES_PAGE_SIZE, status: TAB_STATUS[tab], workdayId: activeWorkday.id };
       if (deferredQ) params.search = deferredQ;
-      const [vRes, rRes] = await Promise.allSettled([
-        api.get('/vehicles', { params }),
-        api.get('/requests', { params: { status: 'PENDING', limit: 200 } }),
-      ]);
-      if (vRes.status === 'fulfilled') {
-        const responseBody = vRes.value.data;
+      if (sortBy) { params.sortBy = sortBy; params.sortOrder = sortOrder; }
+      const vRes = await api.get('/vehicles', { params }).catch(err => ({ error: err }));
+      if (!vRes.error) {
+        const responseBody = vRes.data;
         const list = Array.isArray(responseBody?.data) ? responseBody.data : (responseBody?.data?.data || []);
         const serverMeta = responseBody?.meta || {};
-        const STATUS_ORDER = { unpaid: 0, in_review: 1, paid: 2, delivered: 3 };
         const normalised = list.map(normaliseRecord);
-        if (tab === 'in_lot') {
-          normalised.sort((a, b) => (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9));
-        }
         setVehicles(normalised);
         setPageMeta(m => ({ ...m, ...serverMeta }));
       } else {
         setToast('Error al cargar vehículos');
       }
-      if (rRes.status === 'fulfilled') {
-        const raw = rRes.value.data.data;
-        const reqs = Array.isArray(raw) ? raw : (raw?.data || []);
-        setOpenRequestIds(new Set(reqs.map(r => r.parkingRecordId)));
-      }
     } finally {
       setLoading(false);
     }
-  }, [tab, deferredQ, page, workdayChecked, activeWorkday, refreshKey]);
+  }, [tab, deferredQ, page, workdayChecked, activeWorkday, refreshKey, sortBy, sortOrder]);
 
   useEffect(() => { fetchVehicles(); }, [fetchVehicles]);
 
@@ -336,6 +326,15 @@ function VehiclesScreen({ onRegister, user, refreshKey = 0 }) {
       setActionLoading(null);
     }
   };
+
+  function handleSort(column) {
+    if (sortBy === column) {
+      setSortOrder(o => o === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(column);
+      setSortOrder('asc');
+    }
+  }
 
   const tabs = [
     { id: 'in_lot',    label: 'En lote',              icon: 'car',    tone: 'blue'  },
@@ -397,7 +396,7 @@ function VehiclesScreen({ onRegister, user, refreshKey = 0 }) {
           <button
             key={t.id}
             className={`status-tab status-tab-${t.tone}${tab === t.id ? ' active' : ''}`}
-            onClick={() => { setTab(t.id); setPage(1); }}
+            onClick={() => { setTab(t.id); setPage(1); setSortBy(null); setSortOrder('asc'); }}
           >
             <span className="status-tab-icon"><Icon name={t.icon} size={16} /></span>
             <span className="status-tab-text">
@@ -429,7 +428,21 @@ function VehiclesScreen({ onRegister, user, refreshKey = 0 }) {
           <div className="tbl-wrap">
             <table className="tbl">
               <thead>
-                <tr><th>Vehículo</th><th>Valet</th><th>Ingreso</th><th>Estado</th><th></th></tr>
+                <tr>
+                  <th>Vehículo</th>
+                  <th style={{cursor:'pointer'}} onClick={() => handleSort('ticketNumber')}>
+                    Ticket {sortBy==='ticketNumber' ? (sortOrder==='asc' ? '▲' : '▼') : '↕'}
+                  </th>
+                  <th>Titular</th>
+                  <th style={{cursor:'pointer'}} onClick={() => handleSort('valetName')}>
+                    Valet {sortBy==='valetName' ? (sortOrder==='asc' ? '▲' : '▼') : '↕'}
+                  </th>
+                  <th style={{cursor:'pointer'}} onClick={() => handleSort('checkInAt')}>
+                    Ingreso {sortBy==='checkInAt' ? (sortOrder==='asc' ? '▲' : '▼') : '↕'}
+                  </th>
+                  <th>Estado</th>
+                  <th></th>
+                </tr>
               </thead>
               <tbody>
                 {vehicles.map(v => (
@@ -439,11 +452,11 @@ function VehiclesScreen({ onRegister, user, refreshKey = 0 }) {
                     owner={{ name: v.ownerName, cedula: v.ownerIdNumber }}
                     onAction={handleAction}
                     disabled={actionLoading === v.id}
-                    hasOpenRequest={openRequestIds.has(v.id)}
+                    hasOpenRequest={v.hasOpenRequest}
                   />
                 ))}
                 {vehicles.length === 0 && (
-                  <tr><td colSpan="5"><div className="empty" style={{ padding: 50 }}><Icon name="car" size={42} className="ico" /><p>{deferredQ ? 'Sin resultados para tu búsqueda.' : emptyCopy[tab]}</p></div></td></tr>
+                  <tr><td colSpan="7"><div className="empty" style={{ padding: 50 }}><Icon name="car" size={42} className="ico" /><p>{deferredQ ? 'Sin resultados para tu búsqueda.' : emptyCopy[tab]}</p></div></td></tr>
                 )}
               </tbody>
             </table>
@@ -480,6 +493,7 @@ function VehiclesScreen({ onRegister, user, refreshKey = 0 }) {
 }
 
 /* ─── EMPLOYEES ─────────────────────────────────────────── */
+const EMPLOYEE_TYPE_LABEL = { VALET: 'Valet', ATTENDANT: 'Encargado', ADMIN: 'Administrador', MANAGER: 'Gerente' };
 const EMPTY_EMPLOYEE = { id: null, name: '', idNumber: '', type: 'VALET', email: '' };
 
 function EmployeeFormModal({ open, onClose, onSave, onDelete, employee }) {
@@ -664,7 +678,7 @@ function EmployeesScreen() {
                       </div>
                     </td>
                     <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{e.idNumber}</td>
-                    <td><Badge tone={e.type === 'VALET' ? 'blue' : 'slate'}>{e.type}</Badge></td>
+                    <td><Badge tone={e.type === 'VALET' ? 'blue' : 'slate'}>{EMPLOYEE_TYPE_LABEL[e.type] || e.type}</Badge></td>
                     <td>{e.email || '—'}</td>
                     <td style={{ textAlign: 'right' }}>
                       <button className="btn btn-ghost" style={{ padding: '6px 10px', color: '#F87171' }} onClick={() => remove(e)} title="Eliminar empleado">
@@ -880,7 +894,7 @@ function PaymentModal({ open, vehicle, onClose, onDone }) {
               required
               style={{ background: 'var(--slate-800)', border: '1px solid var(--slate-700)', borderRadius: 8, color: '#fff', padding: '10px 12px', width: '100%', fontFamily: 'inherit' }}
             >
-              {methods.map(m => <option key={m.id} value={m.id}>{m.name} ({m.type})</option>)}
+              {methods.map(m => <option key={m.id} value={m.id}>{m.name} ({TYPE_LABEL[m.type] || m.type})</option>)}
             </select>
           </div>
 

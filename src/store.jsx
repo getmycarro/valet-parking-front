@@ -61,10 +61,13 @@ function normaliseRecord(r) {
     ownerId:  r.ownerId   || '',
     ownerName: r.owner?.name || r.registerRecord?.name || '',
     ownerIdNumber: r.owner?.idNumber || r.registerRecord?.idNumber || '',
+    ticketNumber: r.ticketNumber ?? null,
+    titular: r.owner?.name || '',
     valet:    r.checkInValet?.name || r.registerRecord?.name || '—',
     valetId:  r.checkInValet?.id || null,
     checkIn:  r.checkInAt ? new Date(r.checkInAt).toLocaleString('es-VE', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' }) : '—',
     status:   apiStatusToUi(r.status),
+    hasOpenRequest: (r.vehicleRequests?.length ?? 0) > 0,
     _raw:     r,
   };
 }

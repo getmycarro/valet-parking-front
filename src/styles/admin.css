@@ -200,6 +200,9 @@ body {
   letter-spacing: 0.05em; font-family: var(--font-mono);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.25);
 }
+.plate--red {
+  background: linear-gradient(135deg, #EF4444, #DC2626);
+}
 .car-row { display: flex; align-items: center; gap: 12px; }
 .car-row .name { color: #fff; font-weight: 500; }
 .car-row .sub { color: var(--slate-500); font-size: 12px; }

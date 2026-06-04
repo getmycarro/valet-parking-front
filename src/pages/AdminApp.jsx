@@ -130,6 +130,7 @@ export default function AdminApp() {
           user={user}
           onNavNotifications={() => handleNav('notifications')}
           onMenuToggle={() => setSidebarOpen(v => !v)}
+          onNotification={() => setVehiclesRefreshKey(k => k + 1)}
         />
         <Routes>
           <Route path="ticket/:id" element={<TicketDetailScreen user={user} />} />

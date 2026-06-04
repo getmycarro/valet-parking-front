@@ -96,7 +96,7 @@ function Sidebar({ active, onNav, role, user, onLogout, isOpen }) {
   );
 }
 
-function Topbar({ title, onToggleTheme, isDark, user, onNavNotifications, onMenuToggle }) {
+function Topbar({ title, onToggleTheme, isDark, user, onNavNotifications, onMenuToggle, onNotification }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -118,7 +118,18 @@ function Topbar({ title, onToggleTheme, isDark, user, onNavNotifications, onMenu
     const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
     const es = new EventSource(`${baseUrl}/notifications/stream?token=${encodeURIComponent(token)}`);
 
-    es.onmessage = () => setUnreadCount(c => c + 1);
+    es.onmessage = (e) => {
+      setUnreadCount(c => c + 1);
+      try {
+        const payload = JSON.parse(e.data);
+        if (
+          payload.type === 'CHECKOUT_REQUEST' ||
+          payload.type === 'OBJECT_SEARCH_REQUEST'
+        ) {
+          onNotification?.();
+        }
+      } catch {}
+    };
 
     return () => es.close();
   }, [user]);
@@ -285,8 +296,12 @@ function KpiCard({ icon, tone = "blue", trend, trendKind = "up", label, value, s
   );
 }
 
-function Plate({ children }) {
-  return <span className="plate">{children}</span>;
+function Plate({ children, tone }) {
+  return (
+    <span className={`plate${tone === 'red' ? ' plate--red' : ''}`}>
+      {children}
+    </span>
+  );
 }
 
 function Badge({ tone = "slate", children }) {
@@ -367,7 +382,7 @@ function VehicleRow({ v, owner, onAction, disabled, hasOpenRequest }) {
         <div className="car-row">
           <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
             <Link to={`/admin/ticket/${v.id}`} style={{ textDecoration: 'none' }}>
-              <Plate>{v.plate}</Plate>
+              <Plate tone={hasOpenRequest ? 'red' : undefined}>{v.plate}</Plate>
             </Link>
             {hasOpenRequest && (
               <span style={{
@@ -385,6 +400,8 @@ function VehicleRow({ v, owner, onAction, disabled, hasOpenRequest }) {
           </div>
         </div>
       </td>
+      <td>{v.ticketNumber ?? '—'}</td>
+      <td>{v.titular || '—'}</td>
       <td>{v.valet}</td>
       <td>{v.checkIn}</td>
       <td><StatusSelect v={v} onAction={onAction} disabled={!!disabled} /></td>

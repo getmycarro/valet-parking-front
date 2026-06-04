@@ -42,6 +42,7 @@ function CompaniesScreen() {
   const STATUS_TONE  = { ACTIVE: 'green', active: 'green', PENDING: 'amber', pending: 'amber', TRIAL: 'blue', trial: 'blue' };
   const STATUS_LABEL = { ACTIVE: 'Activa', active: 'Activa', PENDING: 'Pendiente', pending: 'Pendiente', TRIAL: 'Trial', trial: 'Trial' };
   const PLAN_TONE    = { FLAT_RATE: 'blue', PER_VEHICLE: 'slate', MIXED: 'amber' };
+  const PLAN_LABEL   = { FLAT_RATE: 'Tasa Fija', PER_VEHICLE: 'Por Vehículo', MIXED: 'Mixto' };
 
   return (
     <div className="page">
@@ -91,7 +92,7 @@ function CompaniesScreen() {
                         </div>
                       </td>
                       <td style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}>{c.rif || c.code || '—'}</td>
-                      <td><Badge tone={PLAN_TONE[planType] || 'slate'}>{planType}</Badge></td>
+                      <td><Badge tone={PLAN_TONE[planType] || 'slate'}>{PLAN_LABEL[planType] || planType}</Badge></td>
                       <td>
                         <Badge tone={STATUS_TONE[statusKey] || 'slate'}>{STATUS_LABEL[statusKey] || statusKey}</Badge>
                       </td>
@@ -164,7 +165,7 @@ function UsersScreen() {
   }, []);
 
   const ROLE_TONE  = { SUPER_ADMIN: 'blue', ADMIN: 'slate', MANAGER: 'amber', ATTENDANT: 'indigo', CLIENT: 'green' };
-  const ROLE_LABEL = { SUPER_ADMIN: 'Super Admin', ADMIN: 'Administrador', MANAGER: 'Gerente', ATTENDANT: 'Attendant', CLIENT: 'Cliente' };
+  const ROLE_LABEL = { SUPER_ADMIN: 'Super Admin', ADMIN: 'Administrador', MANAGER: 'Gerente', ATTENDANT: 'Encargado', CLIENT: 'Cliente' };
 
   const filtered = users.filter(u => !q || (u.name + u.email + (u.company?.name || '')).toLowerCase().includes(q.toLowerCase()));
 
