@@ -554,3 +554,33 @@ body {
 @media (max-width: 640px) {
   .page { padding: 16px 12px; gap: 16px; }
 }
+
+/* ─── RegisterVehicleModal — vehicle card picker ────────── */
+.reg-vehicle-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--slate-700);
+  background: var(--slate-800);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: border-color 0.15s, background 0.15s;
+}
+.reg-vehicle-card:hover {
+  border-color: var(--slate-500);
+  background: var(--slate-700);
+}
+.reg-vehicle-plate {
+  font-family: 'SF Mono', monospace;
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  min-width: 90px;
+}
+.reg-vehicle-meta {
+  font-size: 13px;
+  color: var(--slate-400);
+}

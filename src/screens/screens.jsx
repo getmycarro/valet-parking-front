@@ -1008,6 +1008,7 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
   const [brandKey, setBrandKey] = useState('');      // '' | brand.name | '__manual__'
   const [modelKey, setModelKey] = useState('');      // '' | model.name | '__manual__'
   const [errToast, setErrToast] = useState(null);
+  const [showVehiclePicker, setShowVehiclePicker] = useState(false);
 
   // Load valets list when modal opens
   useEffect(() => {
@@ -1018,6 +1019,7 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
     setSaving(false);
     setBrandKey('');
     setModelKey('');
+    setShowVehiclePicker(false);
 
     api.get('/vehicles/valets')
       .then(res => {
@@ -1068,6 +1070,7 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
     setVehicle({ plate: '', brand: '', model: '', color: '' });
     setBrandKey('');
     setModelKey('');
+    setShowVehiclePicker(false);
   };
 
   const plateAlphaCount = (vehicle.plate.match(/[a-zA-Z]/g) || []).length;
@@ -1236,15 +1239,45 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
               <button className="btn btn-ghost btn-sm" type="button" onClick={reset}>Cambiar</button>
             </div>
 
-            {ownerVehicles.length > 0 && (
-              <div className="field" style={{ marginTop: 12 }}>
-                <label>Vehículo previo (opcional)</label>
-                <select value={selectedVehicleId} onChange={e => handleSelectPreviousVehicle(e.target.value)} style={{ background: 'var(--slate-800)', border: '1px solid var(--slate-700)', borderRadius: 8, color: '#fff', padding: '10px 12px', width: '100%', fontFamily: 'inherit' }}>
-                  <option value="">— Nuevo vehículo —</option>
-                  {ownerVehicles.map(v => (
-                    <option key={v.id} value={v.id}>{v.plate} · {v.brand} {v.model} ({v.color})</option>
-                  ))}
-                </select>
+            {ownerVehicles.length > 0 && !selectedVehicleId && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ marginTop: 12, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                onClick={() => setShowVehiclePicker(v => !v)}
+              >
+                <Icon name="car" size={15} />
+                {showVehiclePicker ? 'Ocultar vehículos' : 'Buscar Vehículo'}
+              </button>
+            )}
+
+            {showVehiclePicker && ownerVehicles.length > 0 && !selectedVehicleId && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
+                {ownerVehicles.map(v => (
+                  <button
+                    key={v.id}
+                    type="button"
+                    className="reg-vehicle-card"
+                    onClick={() => { handleSelectPreviousVehicle(v.id); setShowVehiclePicker(false); }}
+                  >
+                    <div className="reg-vehicle-plate">{v.plate}</div>
+                    <div className="reg-vehicle-meta">{[v.brand, v.model].filter(Boolean).join(' ')}{v.color ? ` · ${v.color}` : ''}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {selectedVehicleId && (
+              <div className="reg-hint" style={{ marginTop: 10 }}>
+                <Icon name="check" size={14} />
+                <span>Vehículo seleccionado: <strong>{vehicle.plate}</strong>{vehicle.brand ? ` — ${vehicle.brand} ${vehicle.model}` : ''}</span>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => { handleSelectPreviousVehicle(''); setShowVehiclePicker(false); }}
+                >
+                  Cambiar
+                </button>
               </div>
             )}
           </>
@@ -1284,7 +1317,8 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
       }}>
         <div className="reg-section-label">2 · Vehículo</div>
 
-        <div className="grid-2" style={{ gap: 12 }}>
+        {!selectedVehicleId && (
+          <div className="grid-2" style={{ gap: 12 }}>
             <div className="field"><label>Placa</label>
               <input
                 value={vehicle.plate}
@@ -1408,6 +1442,7 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
               )}
             </div>
           </div>
+        )}
 
         {valets.length > 0 && (
           <div className="field" style={{ marginTop: 12 }}>
