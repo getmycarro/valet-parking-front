@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Icon, Logo } from '../components/icons.jsx';
 import { Sidebar, Topbar, KpiCard, Plate, Badge, LivePill, SectionHead, PageHead, Modal, Toast, VehicleRow } from '../components/ui.jsx';
 import { STATUS_META, nextActions, apiStatusToUi, uiStatusToApi, normaliseRecord } from '../store.jsx';
@@ -493,6 +493,9 @@ function VehiclesScreen({ onRegister, user, refreshKey = 0 }) {
   );
 }
 
+/* Etiquetas de tipo de método de pago — usadas por PaymentMethodsScreen y PaymentModal */
+const PAYMENT_TYPE_LABEL = { ZELLE: 'Zelle', MOBILE_PAYMENT: 'Pago Móvil', BINANCE: 'Binance', CASH: 'Efectivo', CARD: 'Tarjeta' };
+
 /* ─── EMPLOYEES ─────────────────────────────────────────── */
 const EMPLOYEE_TYPE_LABEL = { VALET: 'Valet', ATTENDANT: 'Encargado', ADMIN: 'Administrador', MANAGER: 'Gerente' };
 const EMPTY_EMPLOYEE = { id: null, name: '', idNumber: '', type: 'VALET', email: '' };
@@ -733,7 +736,6 @@ function PaymentMethodsScreen() {
   }, []);
 
   const TYPE_TONE = { ZELLE: 'blue', MOBILE_PAYMENT: 'cyan', BINANCE: 'amber', CASH: 'green', CARD: 'indigo' };
-  const TYPE_LABEL = { ZELLE: 'Zelle', MOBILE_PAYMENT: 'Pago Móvil', BINANCE: 'Binance', CASH: 'Efectivo', CARD: 'Tarjeta' };
 
   return (
     <div className="page">
@@ -756,7 +758,7 @@ function PaymentMethodsScreen() {
                 {methods.map(m => (
                   <tr key={m.id}>
                     <td style={{ fontWeight: 600, color: '#fff' }}>{m.name || '—'}</td>
-                    <td><Badge tone={TYPE_TONE[m.type] || 'slate'}>{TYPE_LABEL[m.type] || m.type}</Badge></td>
+                    <td><Badge tone={TYPE_TONE[m.type] || 'slate'}>{PAYMENT_TYPE_LABEL[m.type] || m.type}</Badge></td>
                     <td style={{ color: 'var(--slate-400)', fontSize: 13 }}>{m.detail || m.accountNumber || '—'}</td>
                     <td><Badge tone={m.isActive ? 'green' : 'slate'}>{m.isActive ? 'Activo' : 'Inactivo'}</Badge></td>
                   </tr>
@@ -776,6 +778,7 @@ function PaymentMethodsScreen() {
 function PaymentModal({ open, vehicle, onClose, onDone }) {
   const [methods, setMethods] = useState([]);
   const [methodsErr, setMethodsErr] = useState(null);
+  const [loadingMethods, setLoadingMethods] = useState(false);
   const [selectedMethodId, setSelectedMethodId] = useState('');
   const [amountUSD, setAmountUSD] = useState('');
   const [reference, setReference] = useState('');
@@ -784,16 +787,46 @@ function PaymentModal({ open, vehicle, onClose, onDone }) {
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState(null);
   const [exchangeRate, setExchangeRate] = useState(null);
+  const [cameraActive, setCameraActive] = useState(false);
+  const fileInputRef = useRef(null);
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+
+  // Stop camera tracks and reset camera state
+  const stopCamera = () => {
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    streamRef.current = null;
+    setCameraActive(false);
+  };
+
+  // Attach stream to video element once it mounts (cameraActive becomes true)
+  useEffect(() => {
+    if (cameraActive && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+    }
+  }, [cameraActive]);
+
+  // Cleanup on unmount — turn off camera light
+  useEffect(() => {
+    return () => {
+      streamRef.current?.getTracks().forEach(t => t.stop());
+    };
+  }, []);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      stopCamera();
+      return;
+    }
     setSelectedMethodId('');
     setAmountUSD('');
     setReference('');
     setImage(null);
     setUploading(false);
     setErr(null);
+    setMethods([]);
     setMethodsErr(null);
+    setLoadingMethods(true);
     setExchangeRate(null);
 
     fetch('https://ve.dolarapi.com/v1/dolares/oficial')
@@ -812,17 +845,17 @@ function PaymentModal({ open, vehicle, onClose, onDone }) {
           setSelectedMethodId(list[0].id);
         }
       })
-      .catch(() => setMethodsErr('Error al cargar métodos de pago'));
+      .catch(() => setMethodsErr('Error al cargar métodos de pago'))
+      .finally(() => setLoadingMethods(false));
   }, [open]);
 
-  const handlePhoto = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  const uploadImage = async (fileOrBlob) => {
+    if (!fileOrBlob) return;
     setUploading(true);
     setErr(null);
     try {
       const form = new FormData();
-      form.append('file', file);
+      form.append('file', fileOrBlob, 'captura.jpg');
       form.append('upload_preset', import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET);
       const res = await fetch(
         `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`,
@@ -836,6 +869,34 @@ function PaymentModal({ open, vehicle, onClose, onDone }) {
     } finally {
       setUploading(false);
     }
+  };
+
+  const handlePhoto = (e) => {
+    uploadImage(e.target.files[0]);
+  };
+
+  const startCamera = async () => {
+    setErr(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+      streamRef.current = stream;
+      setCameraActive(true);
+    } catch {
+      setErr('No se pudo acceder a la cámara. Revisa los permisos del navegador o usa "Subir archivo".');
+    }
+  };
+
+  const capturePhoto = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(async (blob) => {
+      stopCamera();
+      if (blob) await uploadImage(blob);
+    }, 'image/jpeg', 0.9);
   };
 
   const canSubmit = !submitting && !uploading && !!selectedMethodId && parseFloat(amountUSD) > 0;
@@ -881,7 +942,12 @@ function PaymentModal({ open, vehicle, onClose, onDone }) {
         </button>
       </>}
     >
-      {methodsErr ? (
+      {loadingMethods ? (
+        <div className="empty" style={{ padding: 40 }}>
+          <Icon name="loader" size={28} className="ico" style={{ animation: 'spin 1s linear infinite' }} />
+          <p style={{ fontSize: 13, color: 'var(--slate-400)', marginTop: 8 }}>Cargando métodos de pago…</p>
+        </div>
+      ) : methodsErr ? (
         <div style={{ color: '#F87171', fontSize: 13, padding: '10px 14px', background: 'rgba(248,113,113,0.1)', borderRadius: 8, border: '1px solid rgba(248,113,113,0.2)' }}>
           {methodsErr}
         </div>
@@ -895,7 +961,7 @@ function PaymentModal({ open, vehicle, onClose, onDone }) {
               required
               style={{ background: 'var(--slate-800)', border: '1px solid var(--slate-700)', borderRadius: 8, color: '#fff', padding: '10px 12px', width: '100%', fontFamily: 'inherit' }}
             >
-              {methods.map(m => <option key={m.id} value={m.id}>{m.name} ({TYPE_LABEL[m.type] || m.type})</option>)}
+              {methods.map(m => <option key={m.id} value={m.id}>{m.name} ({PAYMENT_TYPE_LABEL[m.type] || m.type})</option>)}
             </select>
           </div>
 
@@ -935,12 +1001,59 @@ function PaymentModal({ open, vehicle, onClose, onDone }) {
           <div className="field">
             <label>Foto del comprobante <span style={{ color: 'var(--slate-500)', fontWeight: 400 }}>(opcional)</span></label>
             <input
+              ref={fileInputRef}
               type="file"
               accept="image/*"
               onChange={handlePhoto}
               disabled={uploading}
-              style={{ color: 'var(--slate-300)', fontSize: 13 }}
+              style={{ display: 'none' }}
             />
+            {!cameraActive ? (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={uploading}
+                  onClick={startCamera}
+                >
+                  📷 Tomar foto
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={uploading}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  Subir archivo
+                </button>
+              </div>
+            ) : (
+              <div>
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  style={{ width: '100%', borderRadius: 12, background: 'var(--slate-800)', maxHeight: 320, objectFit: 'cover', display: 'block' }}
+                />
+                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={capturePhoto}
+                  >
+                    📸 Capturar
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={stopCamera}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
             {uploading && (
               <span style={{ fontSize: 12, color: 'var(--slate-400)', marginTop: 4, display: 'block' }}>
                 Subiendo imagen…
@@ -1003,6 +1116,8 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
   const [vehicle, setVehicle] = useState({ plate: '', brand: '', model: '', color: '' });
   const [selectedVehicleId, setSelectedVehicleId] = useState('');
   const [valetId, setValetId] = useState('');
+  const [ticketNumber, setTicketNumber] = useState('');
+  const [usedTickets, setUsedTickets] = useState([]);
   const [err, setErr] = useState(null);
   const [saving, setSaving] = useState(false);
   const [carBrands, setCarBrands] = useState([]);   // fetched from API
@@ -1021,6 +1136,11 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
     setBrandKey('');
     setModelKey('');
     setShowVehiclePicker(false);
+    setTicketNumber('');
+
+    api.get('/vehicles/active-tickets')
+      .then(res => setUsedTickets(Array.isArray(res.data.data?.used) ? res.data.data.used : []))
+      .catch(() => setUsedTickets([]));
 
     api.get('/vehicles/valets')
       .then(res => {
@@ -1053,6 +1173,7 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
       if (data) {
         setOwner(data);
         setNewOwner(null);
+        setShowVehiclePicker((data.ownedVehicles?.length || 0) > 0);
       } else {
         setOwner(null);
         setNewOwner({ name: '', idNumber: query.trim(), email: '', phone: '' });
@@ -1078,12 +1199,14 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
   const plateInvalid = !selectedVehicleId && vehicle.plate.trim().length > 0 && plateAlphaCount < 2;
   const plateMissing = !selectedVehicleId && !vehicle.plate.trim();
   const contactMissing = !!(newOwner && !newOwner.email?.trim() && !newOwner.phone?.trim());
+  const ticketTaken = ticketNumber.trim() !== '' && usedTickets.includes(Number(ticketNumber));
 
   const canSubmit = (() => {
     if (saving) return false;
     if (plateMissing) return false;
     if (plateInvalid) return false;
     if (contactMissing) return false;
+    if (ticketTaken) return false;
     if (owner) return true;
     if (newOwner && newOwner.name.trim() && newOwner.idNumber.trim()) return true;
     return false;
@@ -1118,6 +1241,7 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
       }
 
       if (valetId) payload.valetId = valetId;
+      if (ticketNumber.trim() !== '') payload.ticketNumber = Number(ticketNumber);
 
       const res = await api.post('/vehicles/register', payload);
       const plate = res.data.data?.plate || vehicle.plate;
@@ -1248,7 +1372,7 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
                 onClick={() => setShowVehiclePicker(v => !v)}
               >
                 <Icon name="car" size={15} />
-                {showVehiclePicker ? 'Ocultar vehículos' : 'Buscar Vehículo'}
+                {showVehiclePicker ? 'Ocultar vehículos' : 'Ver vehículos registrados'}
               </button>
             )}
 
@@ -1460,6 +1584,27 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
             </select>
           </div>
         )}
+
+        <div className="field" style={{ marginTop: 12 }}>
+          <label>Número de ticket (opcional)</label>
+          <input
+            value={ticketNumber}
+            onChange={e => setTicketNumber(e.target.value.replace(/[^0-9]/g, ''))}
+            placeholder="Se autogenera si lo dejas vacío"
+            inputMode="numeric"
+            style={ticketTaken ? { borderColor: '#F87171' } : undefined}
+          />
+          {ticketTaken && (
+            <span style={{ fontSize: 11, color: '#F87171', marginTop: 4, display: 'block' }}>
+              El número {ticketNumber} ya está en uso. Elige uno libre.
+            </span>
+          )}
+          {usedTickets.length > 0 && (
+            <span style={{ fontSize: 11, color: 'var(--slate-400)', marginTop: 4, display: 'block' }}>
+              Ocupados: {usedTickets.join(', ')}
+            </span>
+          )}
+        </div>
       </div>
     </Modal>
     <Toast message={errToast} tone="error" />

@@ -113,6 +113,13 @@ export default function TicketDetailScreen({ user }) {
 
   const handleStatusChange = async (newUiStatus) => {
     if (!vehicle || newUiStatus === vehicle.status) return;
+    if (newUiStatus === 'paid') {
+      const hasApproved = vehicle._raw?.payments?.some(p => p.status === 'RECEIVED');
+      if (!hasApproved) {
+        setStatusError('No hay un pago confirmado. Aprueba un pago antes de marcar el ticket como Pagado.');
+        return;
+      }
+    }
     setStatusUpdating(true);
     setStatusError(null);
     try {
@@ -242,7 +249,7 @@ export default function TicketDetailScreen({ user }) {
             >
               <option value="unpaid">Sin pago</option>
               <option value="in_review">En revisión</option>
-              <option value="paid">Pagado</option>
+              <option value="paid" disabled={!vehicle._raw?.payments?.some(p => p.status === 'RECEIVED')}>Pagado</option>
               <option value="delivered">Entregado</option>
             </select>
             {statusUpdating && <div style={{ fontSize: 11, color: 'var(--slate-400)', marginTop: 4 }}>Guardando…</div>}
