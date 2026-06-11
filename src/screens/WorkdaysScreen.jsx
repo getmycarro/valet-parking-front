@@ -13,6 +13,11 @@ export default function WorkdaysScreen({ user }) {
   const [isLoading, setIsLoading]             = useState(true);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [showCloseModal, setShowCloseModal]   = useState(false);
+  const [showOpenModal, setShowOpenModal]     = useState(false);
+  const [openPrice, setOpenPrice]             = useState('');
+  const [showPriceModal, setShowPriceModal]   = useState(false);
+  const [editPrice, setEditPrice]             = useState('');
+  const [priceConfirm, setPriceConfirm]       = useState(false);
   const [closeError, setCloseError]           = useState(null);
   const [toast, setToast]                     = useState(null);
   const [selectedWorkday, setSelectedWorkday] = useState(null);
@@ -81,14 +86,46 @@ export default function WorkdaysScreen({ user }) {
 
   /* ── action handlers ── */
 
-  const handleOpen = async () => {
+  const handleOpen = () => {
+    setOpenPrice('');
+    setShowOpenModal(true);
+  };
+
+  const confirmOpen = async () => {
     setIsActionLoading(true);
     try {
-      await api.post('/workdays/open');
+      const price = parseFloat(openPrice);
+      const payload = openPrice.trim() !== '' && price >= 0 ? { valetPrice: price } : {};
+      await api.post('/workdays/open', payload);
+      setShowOpenModal(false);
       setToast('Jornada abierta correctamente');
       await fetchData();
     } catch (err) {
       setToast(err.response?.data?.message || 'Error al abrir la jornada');
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleEditPrice = () => {
+    setEditPrice(activeWorkday?.valetPrice != null ? String(activeWorkday.valetPrice) : '');
+    setPriceConfirm(false);
+    setShowPriceModal(true);
+  };
+
+  const confirmEditPrice = async () => {
+    if (!activeWorkday?.id) return;
+    setIsActionLoading(true);
+    try {
+      const price = parseFloat(editPrice);
+      const payload = editPrice.trim() !== '' && price >= 0 ? { valetPrice: price } : {};
+      await api.patch(`/workdays/${activeWorkday.id}/price`, payload);
+      setShowPriceModal(false);
+      setPriceConfirm(false);
+      setToast('Tarifa de la jornada actualizada');
+      await fetchData();
+    } catch (err) {
+      setToast(err.response?.data?.message || 'Error al actualizar la tarifa');
     } finally {
       setIsActionLoading(false);
     }
@@ -178,18 +215,34 @@ export default function WorkdaysScreen({ user }) {
               }} />
               <span style={{ color: '#22C55E', fontWeight: 600, fontSize: 14, fontFamily: 'var(--font-display)' }}>
                 Jornada activa desde {formatDate(activeWorkday.openedAt)} · {formatTime(activeWorkday.openedAt)}
+                {activeWorkday.valetPrice != null && (
+                  <span style={{ marginLeft: 10, color: '#22C55E', fontWeight: 700 }}>
+                    · Tarifa ${Number(activeWorkday.valetPrice).toFixed(2)}
+                  </span>
+                )}
               </span>
             </div>
             {canManage && (
-              <button
-                className="btn btn-danger"
-                style={{ padding: '8px 18px', fontSize: 13 }}
-                onClick={handleClose}
-                disabled={isActionLoading}
-              >
-                <Icon name="x" size={14} />
-                {isActionLoading ? 'Cerrando…' : 'Cerrar Jornada'}
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button
+                  className="btn btn-secondary"
+                  style={{ padding: '8px 18px', fontSize: 13 }}
+                  onClick={handleEditPrice}
+                  disabled={isActionLoading}
+                >
+                  <Icon name="wallet" size={14} />
+                  Editar tarifa
+                </button>
+                <button
+                  className="btn btn-danger"
+                  style={{ padding: '8px 18px', fontSize: 13 }}
+                  onClick={handleClose}
+                  disabled={isActionLoading}
+                >
+                  <Icon name="x" size={14} />
+                  {isActionLoading ? 'Cerrando…' : 'Cerrar Jornada'}
+                </button>
+              </div>
             )}
           </div>
 
@@ -365,6 +418,128 @@ export default function WorkdaysScreen({ user }) {
           )}
         </div>
       )}
+
+      {/* ── edit valet price modal (edit → confirm) ── */}
+      <Modal
+        open={showPriceModal}
+        onClose={() => setShowPriceModal(false)}
+        title={priceConfirm ? 'Confirmar cambio de tarifa' : 'Editar tarifa de la jornada'}
+        description={priceConfirm
+          ? 'Confirma el cambio del costo fijo del valet parking para la jornada activa.'
+          : 'Modifica el costo fijo en USD. Se usará como monto sugerido en los próximos pagos.'}
+        footer={priceConfirm ? (
+          <>
+            <button
+              className="btn btn-secondary"
+              onClick={() => setPriceConfirm(false)}
+              disabled={isActionLoading}
+            >
+              Volver
+            </button>
+            <button
+              className="btn btn-primary"
+              onClick={confirmEditPrice}
+              disabled={isActionLoading}
+            >
+              {isActionLoading ? 'Guardando…' : 'Confirmar cambio'}
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              className="btn btn-secondary"
+              onClick={() => setShowPriceModal(false)}
+              disabled={isActionLoading}
+            >
+              Cancelar
+            </button>
+            <button
+              className="btn btn-primary"
+              onClick={() => setPriceConfirm(true)}
+              disabled={isActionLoading}
+            >
+              Continuar
+            </button>
+          </>
+        )}
+      >
+        {priceConfirm ? (
+          <>
+            <p style={{ color: 'var(--admin-text-2)', fontSize: 14, lineHeight: 1.6 }}>
+              La tarifa pasará de{' '}
+              <strong style={{ color: 'var(--admin-text-1)' }}>
+                {activeWorkday?.valetPrice != null ? `$${Number(activeWorkday.valetPrice).toFixed(2)}` : 'Sin tarifa'}
+              </strong>{' '}a{' '}
+              <strong style={{ color: 'var(--admin-text-1)' }}>
+                {editPrice.trim() !== '' ? `$${Number(parseFloat(editPrice)).toFixed(2)}` : 'Sin tarifa'}
+              </strong>.
+            </p>
+            <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(34,197,94,0.10)', border: '1px solid rgba(34,197,94,0.30)', borderRadius: 8, color: 'var(--admin-text-2)', fontSize: 13, lineHeight: 1.5 }}>
+              Los pagos ya registrados conservan su monto y <strong>no se modificarán</strong>. El nuevo precio solo aplica como monto sugerido en pagos futuros.
+            </div>
+          </>
+        ) : (
+          <div className="field">
+            <label>Costo fijo del valet parking (USD)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              inputMode="decimal"
+              value={editPrice}
+              onChange={e => setEditPrice(e.target.value)}
+              placeholder="Ej: 5.00 — déjalo vacío para quitar la tarifa"
+              autoFocus
+            />
+            <span style={{ fontSize: 11, color: 'var(--admin-text-3)', marginTop: 4, display: 'block' }}>
+              Si lo dejas vacío, la jornada quedará sin tarifa y el monto del pago arrancará vacío.
+            </span>
+          </div>
+        )}
+      </Modal>
+
+      {/* ── open workday modal ── */}
+      <Modal
+        open={showOpenModal}
+        onClose={() => setShowOpenModal(false)}
+        title="Abrir jornada"
+        description="Define el costo fijo del valet parking para esta jornada (opcional). Se usará como monto sugerido al registrar pagos."
+        footer={
+          <>
+            <button
+              className="btn btn-secondary"
+              onClick={() => setShowOpenModal(false)}
+              disabled={isActionLoading}
+            >
+              Cancelar
+            </button>
+            <button
+              className="btn btn-primary"
+              onClick={confirmOpen}
+              disabled={isActionLoading}
+            >
+              {isActionLoading ? 'Abriendo…' : 'Abrir jornada'}
+            </button>
+          </>
+        }
+      >
+        <div className="field">
+          <label>Costo fijo del valet parking (USD)</label>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            inputMode="decimal"
+            value={openPrice}
+            onChange={e => setOpenPrice(e.target.value)}
+            placeholder="Ej: 5.00 — déjalo vacío si no aplica"
+            autoFocus
+          />
+          <span style={{ fontSize: 11, color: 'var(--admin-text-3)', marginTop: 4, display: 'block' }}>
+            Opcional. Si lo dejas vacío, el monto del pago arrancará vacío como hasta ahora.
+          </span>
+        </div>
+      </Modal>
 
       {/* ── close confirmation modal ── */}
       <Modal

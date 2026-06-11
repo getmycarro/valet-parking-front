@@ -834,6 +834,14 @@ function PaymentModal({ open, vehicle, onClose, onDone }) {
       .then(d => setExchangeRate(d.promedio ?? null))
       .catch(() => {});
 
+    // Pre-cargar el monto con la tarifa fija de la jornada activa (editable)
+    api.get('/workdays/active')
+      .then(res => {
+        const price = res.data.data?.valetPrice;
+        if (price != null) setAmountUSD(String(price));
+      })
+      .catch(() => {});
+
     api.get('/payments/methods')
       .then(res => {
         const raw = res.data.data;
