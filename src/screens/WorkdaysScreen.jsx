@@ -247,7 +247,6 @@ export default function WorkdaysScreen({ user }) {
           </div>
 
           <div className="kpi-grid-3">
-            <KpiCard icon="car"        tone="blue"  label="Vehículos en lote"   value={stats.inside} sub="Actualmente en el lote" />
             <KpiCard icon="arrowRight" tone="green" label="Vehículos salidos"   value={stats.exited} sub="Salidas en esta jornada" />
             <KpiCard icon="clock"      tone="amber" label="Total en jornada"    value={stats.total}  sub="Registros en la jornada" />
           </div>

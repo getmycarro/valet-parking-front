@@ -148,7 +148,6 @@ function DashboardScreen({ onRegister, onAction }) {
     return () => { cancelled = true; };
   }, []);
 
-  const inLot = vehicles.filter(v => v.status !== 'delivered').length;
   const today = new Date().toDateString();
   const cobradosHoy = payments.filter(p => new Date(p.createdAt || p.date).toDateString() === today).length;
   const recent = vehicles.slice(0, 6);
@@ -168,8 +167,7 @@ function DashboardScreen({ onRegister, onAction }) {
         <div className="glass empty" style={{ padding: 60 }}><Icon name="loader" size={32} className="ico" style={{ animation: 'spin 1s linear infinite' }} /><p>Cargando datos…</p></div>
       ) : (
         <>
-          <div className="kpi-grid-4">
-            <KpiCard icon="car"    tone="blue"   label="Vehículos activos"  value={inLot}         sub="Estado actual del lote" />
+          <div className="kpi-grid-3">
             <KpiCard icon="dollar" tone="amber"  label="Cobros hoy"         value={cobradosHoy}   sub="Pagos registrados hoy" />
             <KpiCard icon="users"  tone="indigo" label="Total registros"    value={vehicles.length} sub="En este período" />
             <KpiCard icon="check"  tone="cyan"   label="Entregados"         value={vehicles.filter(v => v.status === 'delivered').length} sub="Vehículos con checkout" />
@@ -226,16 +224,16 @@ function DashboardScreen({ onRegister, onAction }) {
 
 /* ─── VEHICLES ──────────────────────────────────────────── */
 const VEHICLES_PAGE_SIZE = 25;
-const TAB_STATUS = { in_lot: 'in_lot', unpaid: 'active', in_review: 'in_review', paid: 'pending_delivery', delivered: 'completed' };
+const TAB_STATUS = { unpaid: 'active', in_review: 'in_review', paid: 'pending_delivery', delivered: 'completed' };
 
 function VehiclesScreen({ onRegister, user, refreshKey = 0 }) {
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
   const [deferredQ, setDeferredQ] = useState('');
-  const [tab, setTab] = useState('in_lot');
+  const [tab, setTab] = useState('unpaid');
   const [page, setPage] = useState(1);
-  const [pageMeta, setPageMeta] = useState({ totalPages: 1, active: 0, in_review: 0, pending_delivery: 0, completed: 0, in_lot: 0, all: 0 });
+  const [pageMeta, setPageMeta] = useState({ totalPages: 1, active: 0, in_review: 0, pending_delivery: 0, completed: 0, all: 0 });
   const [toast, setToast] = useState(null);
   const [actionLoading, setActionLoading] = useState(null);
   const [paymentTarget, setPaymentTarget] = useState(null);
@@ -267,7 +265,7 @@ function VehiclesScreen({ onRegister, user, refreshKey = 0 }) {
     if (!workdayChecked) return;
     if (!activeWorkday) {
       setVehicles([]);
-      setPageMeta(m => ({ ...m, in_lot: 0, active: 0, in_review: 0, pending_delivery: 0, completed: 0 }));
+      setPageMeta(m => ({ ...m, active: 0, in_review: 0, pending_delivery: 0, completed: 0 }));
       setLoading(false);
       return;
     }
@@ -295,7 +293,6 @@ function VehiclesScreen({ onRegister, user, refreshKey = 0 }) {
   useEffect(() => { fetchVehicles(); }, [fetchVehicles]);
 
   const counts = {
-    in_lot:    pageMeta.in_lot    ?? 0,
     unpaid:    pageMeta.active    ?? 0,
     in_review: pageMeta.in_review ?? 0,
     paid:      pageMeta.pending_delivery ?? 0,
@@ -337,7 +334,6 @@ function VehiclesScreen({ onRegister, user, refreshKey = 0 }) {
   }
 
   const tabs = [
-    { id: 'in_lot',    label: 'En lote',              icon: 'car',    tone: 'blue'  },
     { id: 'unpaid',    label: 'Sin pago',             icon: 'dollar', tone: 'red'   },
     { id: 'in_review', label: 'Por confirmar',        icon: 'clock',  tone: 'amber' },
     { id: 'paid',      label: 'Listos para entregar', icon: 'clock',  tone: 'amber' },
@@ -345,7 +341,6 @@ function VehiclesScreen({ onRegister, user, refreshKey = 0 }) {
   ];
 
   const emptyCopy = {
-    in_lot:    'No hay vehículos en lote ahora mismo.',
     unpaid:    'Ningún vehículo pendiente de pago.',
     in_review: 'Ningún pago por confirmar.',
     paid:      'Ningún vehículo listo para entregar.',
