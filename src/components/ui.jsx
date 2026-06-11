@@ -20,7 +20,7 @@ function StatusSelect({ v, onAction, disabled }) {
       className={`status-select status-select--${meta.tone}`}
     >
       {ALL_STATUSES.map(s => (
-        <option key={s.id} value={s.id}>{s.label}</option>
+        <option key={s.id} value={s.id} disabled={s.id === 'delivered' && v.status !== 'paid'}>{s.label}</option>
       ))}
     </select>
   );

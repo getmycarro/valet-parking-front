@@ -250,7 +250,7 @@ export default function TicketDetailScreen({ user }) {
               <option value="unpaid">Sin pago</option>
               <option value="in_review">En revisión</option>
               <option value="paid" disabled={!vehicle._raw?.payments?.some(p => p.status === 'RECEIVED')}>Pagado</option>
-              <option value="delivered">Entregado</option>
+              <option value="delivered" disabled={vehicle.status !== 'paid'}>Entregado</option>
             </select>
             {statusUpdating && <div style={{ fontSize: 11, color: 'var(--slate-400)', marginTop: 4 }}>Guardando…</div>}
             {statusError && <div style={{ fontSize: 11, color: '#F87171', marginTop: 4 }}>{statusError}</div>}
