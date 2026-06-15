@@ -19,6 +19,9 @@ export default function WorkdaysScreen({ user }) {
   const [editPrice, setEditPrice]             = useState('');
   const [priceConfirm, setPriceConfirm]       = useState(false);
   const [closeError, setCloseError]           = useState(null);
+  const [showResetModal, setShowResetModal]   = useState(false);
+  const [resetAck, setResetAck]               = useState(false);
+  const [resetError, setResetError]           = useState(null);
   const [toast, setToast]                     = useState(null);
   const [selectedWorkday, setSelectedWorkday] = useState(null);
   const [wdVehicles, setWdVehicles]           = useState([]);
@@ -152,6 +155,29 @@ export default function WorkdaysScreen({ user }) {
     }
   };
 
+  const handleReset = () => {
+    setResetError(null);
+    setResetAck(false);
+    setShowResetModal(true);
+  };
+
+  const confirmReset = async () => {
+    if (!activeWorkday?.id) return;
+    setIsActionLoading(true);
+    setResetError(null);
+    try {
+      await api.post(`/workdays/${activeWorkday.id}/reset`);
+      setShowResetModal(false);
+      setResetAck(false);
+      setToast('Jornada reiniciada — nueva jornada limpia activa');
+      await fetchData();
+    } catch (err) {
+      setResetError(err.response?.data?.message || 'Error al reiniciar la jornada');
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
   const fetchWorkdayVehicles = async (workdayId) => {
     setWdVehiclesLoading(true);
     try {
@@ -241,6 +267,16 @@ export default function WorkdaysScreen({ user }) {
                 >
                   <Icon name="x" size={14} />
                   {isActionLoading ? 'Cerrando…' : 'Cerrar Jornada'}
+                </button>
+                <button
+                  className="btn btn-secondary"
+                  style={{ padding: '8px 18px', fontSize: 13, color: '#F59E0B', borderColor: 'rgba(245,158,11,0.45)' }}
+                  onClick={handleReset}
+                  disabled={isActionLoading}
+                  title="Cierre contundente y nueva jornada limpia (experimental)"
+                >
+                  <Icon name="alert" size={14} />
+                  Reiniciar jornada
                 </button>
               </div>
             )}
@@ -589,6 +625,58 @@ export default function WorkdaysScreen({ user }) {
             <div style={{ color: 'var(--admin-text-3)', fontSize: 11, marginTop: 2 }}>Total</div>
           </div>
         </div>
+      </Modal>
+
+      {/* ── reset workday modal (experimental) ── */}
+      <Modal
+        open={showResetModal}
+        onClose={() => { setShowResetModal(false); setResetAck(false); }}
+        title="Reiniciar jornada (experimental)"
+        description="Cierre contundente de la jornada y apertura de una nueva, limpia."
+        footer={
+          <>
+            <button
+              className="btn btn-secondary"
+              onClick={() => { setShowResetModal(false); setResetAck(false); }}
+              disabled={isActionLoading}
+            >
+              Cancelar
+            </button>
+            <button
+              className="btn btn-danger"
+              onClick={confirmReset}
+              disabled={isActionLoading || !resetAck}
+            >
+              {isActionLoading ? 'Reiniciando…' : 'Reiniciar jornada'}
+            </button>
+          </>
+        }
+      >
+        <div style={{ padding: '12px 14px', background: 'rgba(245,158,11,0.10)', border: '1px solid rgba(245,158,11,0.35)', borderRadius: 8, color: 'var(--admin-text-2)', fontSize: 13, lineHeight: 1.6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#F59E0B', fontWeight: 700, marginBottom: 8 }}>
+            <Icon name="alert" size={16} />
+            Función experimental — solo para pruebas
+          </div>
+          <ul style={{ margin: 0, paddingLeft: 18 }}>
+            <li>Se marcarán <strong style={{ color: 'var(--admin-text-1)' }}>TODOS</strong> los vehículos de la jornada como <strong style={{ color: 'var(--admin-text-1)' }}>entregados</strong> (incluyendo los <strong style={{ color: 'var(--admin-text-1)' }}>{stats.inside}</strong> en lote / sin pagar).</li>
+            <li>Se cerrará la jornada actual y se abrirá una <strong style={{ color: 'var(--admin-text-1)' }}>jornada nueva y vacía, sin tarifa</strong>.</li>
+            <li>Esta acción es <strong style={{ color: 'var(--admin-text-1)' }}>irreversible</strong>.</li>
+          </ul>
+        </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, cursor: 'pointer', color: 'var(--admin-text-2)', fontSize: 13 }}>
+          <input
+            type="checkbox"
+            checked={resetAck}
+            onChange={e => setResetAck(e.target.checked)}
+            style={{ width: 16, height: 16, cursor: 'pointer' }}
+          />
+          Entiendo que esto es experimental e irreversible.
+        </label>
+        {resetError && (
+          <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.35)', borderRadius: 8, color: '#F87171', fontSize: 13 }}>
+            {resetError}
+          </div>
+        )}
       </Modal>
 
       <Toast message={toast} />

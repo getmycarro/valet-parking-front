@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Icon } from '../components/icons.jsx';
-import { PageHead, Plate, Badge } from '../components/ui.jsx';
+import { PageHead, Plate, Badge, Modal, Toast } from '../components/ui.jsx';
 import { STATUS_META, normaliseRecord, uiStatusToApi } from '../store.jsx';
 import api from '../lib/api.js';
 import { generateTicketHTML } from '../lib/printTicket.js';
@@ -18,6 +18,120 @@ const HISTORY_STATUS = {
 function HistoryStatusBadge({ status }) {
   const s = HISTORY_STATUS[status] || { tone: 'slate', label: status };
   return <Badge tone={s.tone}>{s.label}</Badge>;
+}
+
+/* ─── Edit vehicle info modal ─────────────────────────── */
+function EditVehicleModal({ open, onClose, vehicle, onSaved }) {
+  const [form, setForm] = useState({ plate: '', brand: '', model: '', color: '', ticketNumber: '', notes: '' });
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState(null);
+
+  useEffect(() => {
+    if (open && vehicle) {
+      const r = vehicle._raw;
+      setForm({
+        plate:        r.plate        || '',
+        brand:        r.brand        || '',
+        model:        r.model        || '',
+        color:        r.color        || '',
+        ticketNumber: r.ticketNumber != null ? String(r.ticketNumber) : '',
+        notes:        r.notes        || '',
+      });
+      setErr(null);
+    }
+  }, [open, vehicle]);
+
+  const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
+
+  const handleSave = async (e) => {
+    e?.preventDefault?.();
+    if (!form.plate.trim()) { setErr('La placa es obligatoria'); return; }
+    setSaving(true);
+    setErr(null);
+    try {
+      const payload = {
+        plate: form.plate.trim().toUpperCase(),
+        brand: form.brand.trim() || undefined,
+        model: form.model.trim() || undefined,
+        color: form.color.trim() || undefined,
+        notes: form.notes.trim() || undefined,
+      };
+      if (form.ticketNumber.trim() !== '') {
+        const n = Number(form.ticketNumber.trim());
+        if (!isNaN(n)) payload.ticketNumber = n;
+      }
+      await api.patch(`/vehicles/${vehicle.id}`, payload);
+      onSaved?.();
+    } catch (e2) {
+      const msg = e2.response?.data?.message;
+      setErr(Array.isArray(msg) ? msg[0] : (msg || 'Error al guardar'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Editar datos del vehículo"
+      description="Actualiza la información del vehículo registrada en el ticket."
+      footer={<>
+        <button className="btn btn-secondary" onClick={onClose} disabled={saving}>Cancelar</button>
+        <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+          {saving ? 'Guardando…' : 'Guardar cambios'}
+        </button>
+      </>}
+    >
+      <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="grid-2">
+          <div className="field">
+            <label>Placa</label>
+            <input
+              value={form.plate}
+              onChange={e => set('plate', e.target.value.toUpperCase())}
+              placeholder="ABC-123"
+              required
+              style={{ fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}
+            />
+          </div>
+          <div className="field">
+            <label>N° de ticket <span style={{ color: 'var(--slate-500)', fontWeight: 400 }}>(opcional)</span></label>
+            <input
+              type="number"
+              min="1"
+              value={form.ticketNumber}
+              onChange={e => set('ticketNumber', e.target.value)}
+              placeholder="001"
+            />
+          </div>
+        </div>
+        <div className="grid-2">
+          <div className="field">
+            <label>Marca</label>
+            <input value={form.brand} onChange={e => set('brand', e.target.value)} placeholder="Toyota" />
+          </div>
+          <div className="field">
+            <label>Modelo</label>
+            <input value={form.model} onChange={e => set('model', e.target.value)} placeholder="Corolla" />
+          </div>
+        </div>
+        <div className="field">
+          <label>Color</label>
+          <input value={form.color} onChange={e => set('color', e.target.value)} placeholder="Blanco" />
+        </div>
+        <div className="field">
+          <label>Notas <span style={{ color: 'var(--slate-500)', fontWeight: 400 }}>(opcional)</span></label>
+          <input value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Observaciones internas" />
+        </div>
+        {err && (
+          <div style={{ color: '#F87171', fontSize: 13, padding: '8px 12px', background: 'rgba(248,113,113,0.1)', borderRadius: 8, border: '1px solid rgba(248,113,113,0.2)' }}>
+            {err}
+          </div>
+        )}
+      </form>
+    </Modal>
+  );
 }
 
 export default function TicketDetailScreen({ user }) {
@@ -38,6 +152,14 @@ export default function TicketDetailScreen({ user }) {
   const [showBs, setShowBs] = useState(false);
   const [callLoading, setCallLoading] = useState(false);
   const [callError, setCallError] = useState(null);
+  const [editVehicleOpen, setEditVehicleOpen] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 2500);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   const fetchVehicle = useCallback(async () => {
     setLoading(true);
@@ -241,17 +363,26 @@ export default function TicketDetailScreen({ user }) {
           </div>
           <div>
             <div style={{ color: 'var(--slate-400)', fontSize: 12, marginBottom: 4 }}>Estado</div>
-            <select
-              value={vehicle.status}
-              disabled={statusUpdating || vehicle.status === 'delivered'}
-              onChange={e => handleStatusChange(e.target.value)}
-              className={`status-select status-select--${meta.tone}`}
-            >
-              <option value="unpaid">Sin pago</option>
-              <option value="in_review">En revisión</option>
-              <option value="paid" disabled={!vehicle._raw?.payments?.some(p => p.status === 'RECEIVED')}>Pagado</option>
-              <option value="delivered" disabled={vehicle.status !== 'paid'}>Entregado</option>
-            </select>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <select
+                value={vehicle.status}
+                disabled={statusUpdating || vehicle.status === 'delivered'}
+                onChange={e => handleStatusChange(e.target.value)}
+                className={`status-select status-select--${meta.tone}`}
+              >
+                <option value="unpaid">Sin pago</option>
+                <option value="in_review">En revisión</option>
+                <option value="paid" disabled={!vehicle._raw?.payments?.some(p => p.status === 'RECEIVED')}>Pagado</option>
+                <option value="delivered" disabled={vehicle.status !== 'paid'}>Entregado</option>
+              </select>
+              <button
+                className="btn btn-secondary"
+                style={{ padding: '4px 12px', fontSize: 12 }}
+                onClick={() => setEditVehicleOpen(true)}
+              >
+                <Icon name="edit" size={13} /> Editar datos
+              </button>
+            </div>
             {statusUpdating && <div style={{ fontSize: 11, color: 'var(--slate-400)', marginTop: 4 }}>Guardando…</div>}
             {statusError && <div style={{ fontSize: 11, color: '#F87171', marginTop: 4 }}>{statusError}</div>}
             {vehicle && vehicle.status !== 'delivered' && user?.role !== 'CLIENT' && (
@@ -460,6 +591,18 @@ export default function TicketDetailScreen({ user }) {
           )}
         </div>
       </div>
+
+      <EditVehicleModal
+        open={editVehicleOpen}
+        onClose={() => setEditVehicleOpen(false)}
+        vehicle={vehicle}
+        onSaved={async () => {
+          setEditVehicleOpen(false);
+          await fetchVehicle();
+          setToast('Datos del vehículo actualizados');
+        }}
+      />
+      <Toast message={toast} />
       <style>{`@keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }`}</style>
       {lightboxSrc && (
         <div

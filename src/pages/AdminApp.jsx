@@ -9,6 +9,7 @@ import { CompaniesScreen, UsersScreen, AttendantDashboard } from '../screens/rol
 import TicketDetailScreen from '../screens/TicketDetailScreen.jsx';
 import { NotificationsScreen } from '../screens/NotificationsScreen.jsx';
 import WorkdaysScreen from '../screens/WorkdaysScreen.jsx';
+import ClientsScreen from '../screens/ClientsScreen.jsx';
 import { Sidebar, Topbar, PageHead, Toast } from '../components/ui.jsx';
 import { Icon } from '../components/icons.jsx';
 import { useTheme } from '../hooks/useTheme.js';
@@ -17,6 +18,7 @@ const TITLES = {
   dashboard: 'Dashboard',
   vehicles:  'Vehículos',
   employees: 'Empleados',
+  clients:   'Clientes',
   companies: 'Compañías',
   users:     'Usuarios',
   invoices:  'Facturas',
@@ -96,6 +98,7 @@ export default function AdminApp() {
   else if (active === 'employees') body = <EmployeesScreen />;
   else if (active === 'companies') body = <CompaniesScreen />;
   else if (active === 'users')     body = <UsersScreen />;
+  else if (active === 'clients')        body = <ClientsScreen />;
   else if (active === 'workdays')       body = <WorkdaysScreen user={user} />;
   else if (active === 'methods')        body = <PaymentMethodsScreen />;
   else if (active === 'notifications')  body = <NotificationsScreen />;
