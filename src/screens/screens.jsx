@@ -3,6 +3,7 @@ import { Icon, Logo } from '../components/icons.jsx';
 import { Sidebar, Topbar, KpiCard, Plate, Badge, LivePill, SectionHead, PageHead, Modal, Toast, VehicleRow } from '../components/ui.jsx';
 import { STATUS_META, nextActions, apiStatusToUi, uiStatusToApi, normaliseRecord } from '../store.jsx';
 import api from '../lib/api.js';
+import { VehicleFields, plateHasMinLetters } from '../components/vehicleFields.jsx';
 import { auth } from '../lib/firebase.js';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 
@@ -1093,22 +1094,6 @@ function parseApiError(error) {
   return msg || 'Error al registrar vehículo';
 }
 
-const CAR_COLORS = [
-  { label: 'Blanco',    hex: '#FFFFFF' },
-  { label: 'Negro',     hex: '#111111' },
-  { label: 'Gris',      hex: '#6B7280' },
-  { label: 'Plata',     hex: '#C0C0C0' },
-  { label: 'Rojo',      hex: '#EF4444' },
-  { label: 'Azul',      hex: '#3B82F6' },
-  { label: 'Azul osc.', hex: '#1E3A5F' },
-  { label: 'Verde',     hex: '#22C55E' },
-  { label: 'Amarillo',  hex: '#EAB308' },
-  { label: 'Naranja',   hex: '#F97316' },
-  { label: 'Marrón',    hex: '#92400E' },
-  { label: 'Beige',     hex: '#D4B896' },
-  { label: 'Vino',      hex: '#7F1D1D' },
-];
-
 function RegisterVehicleModal({ open, onClose, onDone, user }) {
   const [valets, setValets] = useState([]);
   const [query, setQuery] = useState('');
@@ -1123,9 +1108,6 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
   const [usedTickets, setUsedTickets] = useState([]);
   const [err, setErr] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [carBrands, setCarBrands] = useState([]);   // fetched from API
-  const [brandKey, setBrandKey] = useState('');      // '' | brand.name | '__manual__'
-  const [modelKey, setModelKey] = useState('');      // '' | model.name | '__manual__'
   const [errToast, setErrToast] = useState(null);
   const [showVehiclePicker, setShowVehiclePicker] = useState(false);
 
@@ -1136,8 +1118,6 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
     setVehicle({ plate: '', brand: '', model: '', color: '' });
     setSelectedVehicleId('');
     setSaving(false);
-    setBrandKey('');
-    setModelKey('');
     setShowVehiclePicker(false);
     setTicketNumber('');
 
@@ -1153,10 +1133,6 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
         if (list.length > 0) setValetId(list[0].id);
       })
       .catch(() => setValets([]));
-
-    api.get('/car-brands')
-      .then(res => setCarBrands(Array.isArray(res.data.data) ? res.data.data : []))
-      .catch(() => setCarBrands([]));
   }, [open]);
 
   useEffect(() => {
@@ -1193,13 +1169,10 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
   const reset = () => {
     setQuery(''); setSearched(false); setOwner(null); setNewOwner(null); setErr(null); setSelectedVehicleId('');
     setVehicle({ plate: '', brand: '', model: '', color: '' });
-    setBrandKey('');
-    setModelKey('');
     setShowVehiclePicker(false);
   };
 
-  const plateAlphaCount = (vehicle.plate.match(/[a-zA-Z]/g) || []).length;
-  const plateInvalid = !selectedVehicleId && vehicle.plate.trim().length > 0 && plateAlphaCount < 2;
+  const plateInvalid = !selectedVehicleId && vehicle.plate.trim().length > 0 && !plateHasMinLetters(vehicle.plate);
   const plateMissing = !selectedVehicleId && !vehicle.plate.trim();
   const contactMissing = !!(newOwner && !newOwner.email?.trim() && !newOwner.phone?.trim());
   const ticketTaken = ticketNumber.trim() !== '' && usedTickets.includes(Number(ticketNumber));
@@ -1264,44 +1237,13 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
     setSelectedVehicleId(vehicleId);
     if (!vehicleId) {
       setVehicle({ plate: '', brand: '', model: '', color: '' });
-      setBrandKey('');
-      setModelKey('');
     } else {
       const v = ownerVehicles.find(v => v.id === vehicleId);
       if (v) {
         setVehicle({ plate: v.plate ?? '', brand: v.brand ?? '', model: v.model ?? '', color: v.color ?? '' });
-        setBrandKey(v.brand ?? '');
-        setModelKey(v.model ?? '');
       }
     }
   };
-
-  const handleBrandChange = (val) => {
-    setSelectedVehicleId('');
-    if (val === '__manual__') {
-      setBrandKey('__manual__');
-      setModelKey('__manual__');
-      setVehicle(v => ({ ...v, brand: '', model: '' }));
-    } else {
-      setBrandKey(val);
-      setModelKey('');
-      setVehicle(v => ({ ...v, brand: val, model: '' }));
-    }
-  };
-
-  const handleModelChange = (val) => {
-    setSelectedVehicleId('');
-    if (val === '__manual__') {
-      setModelKey('__manual__');
-      setVehicle(v => ({ ...v, model: '' }));
-    } else {
-      setModelKey(val);
-      setVehicle(v => ({ ...v, model: val }));
-    }
-  };
-
-  const selectedBrandObj = carBrands.find(b => b.name === brandKey);
-  const availableModels = selectedBrandObj ? selectedBrandObj.models : [];
 
   return (
     <>
@@ -1453,130 +1395,12 @@ function RegisterVehicleModal({ open, onClose, onDone, user }) {
         <div className="reg-section-label">2 · Vehículo</div>
 
         {!selectedVehicleId && (
-          <div className="grid-2" style={{ gap: 12 }}>
-            <div className="field"><label>Placa</label>
-              <input
-                value={vehicle.plate}
-                onChange={e => { setSelectedVehicleId(''); setVehicle(v => ({ ...v, plate: e.target.value.toUpperCase() })); }}
-                placeholder="ABC-123"
-                required
-                style={plateInvalid ? { borderColor: '#F87171' } : undefined}
-              />
-              {plateInvalid && (
-                <span style={{ fontSize: 11, color: '#F87171', marginTop: 4, display: 'block' }}>
-                  La placa debe tener al menos 2 letras.
-                </span>
-              )}
-            </div>
-            <div className="field" style={{ gridColumn: '1 / -1' }}>
-              <label>Color</label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6, marginBottom: 6 }}>
-                {CAR_COLORS.map(c => (
-                  <button
-                    key={c.label}
-                    type="button"
-                    title={c.label}
-                    onClick={() => { setSelectedVehicleId(''); setVehicle(v => ({ ...v, color: c.label })); }}
-                    style={{
-                      width: 28, height: 28, borderRadius: '50%',
-                      border: vehicle.color === c.label ? '3px solid #60A5FA' : '2px solid var(--slate-600)',
-                      background: c.hex, cursor: 'pointer', flexShrink: 0,
-                    }}
-                  />
-                ))}
-                <button
-                  type="button"
-                  onClick={() => { setSelectedVehicleId(''); setVehicle(v => ({ ...v, color: '' })); }}
-                  style={{ fontSize: 12, padding: '4px 10px', borderRadius: 6, border: '1px solid var(--slate-600)', background: 'transparent', color: 'var(--slate-300)', cursor: 'pointer' }}
-                >
-                  Otro
-                </button>
-              </div>
-              {vehicle.color && CAR_COLORS.find(c => c.label === vehicle.color) && (
-                <div style={{ fontSize: 12, color: 'var(--slate-400)', marginBottom: 4 }}>
-                  Seleccionado: <strong style={{ color: 'var(--slate-200)' }}>{vehicle.color}</strong>
-                </div>
-              )}
-              {(!vehicle.color || !CAR_COLORS.find(c => c.label === vehicle.color)) && (
-                <input
-                  value={vehicle.color}
-                  onChange={e => { setSelectedVehicleId(''); setVehicle(v => ({ ...v, color: e.target.value })); }}
-                  placeholder="Escribe el color"
-                  style={{ marginTop: 4 }}
-                />
-              )}
-            </div>
-            {/* MARCA */}
-            <div className="field">
-              <label>Marca</label>
-              {carBrands.length > 0 && brandKey !== '__manual__' ? (
-                <select
-                  value={brandKey}
-                  onChange={e => handleBrandChange(e.target.value)}
-                  style={{ background: 'var(--slate-800)', border: '1px solid var(--slate-700)', borderRadius: 8, color: brandKey ? '#fff' : 'var(--slate-400)', padding: '10px 12px', width: '100%', fontFamily: 'inherit', fontSize: 14 }}
-                >
-                  <option value="">— Selecciona una marca —</option>
-                  {carBrands.map(b => <option key={b.id} value={b.name}>{b.name}</option>)}
-                  <option value="__manual__">Otra marca…</option>
-                </select>
-              ) : (
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input
-                    value={vehicle.brand}
-                    onChange={e => setVehicle(v => ({ ...v, brand: e.target.value }))}
-                    placeholder="Escribe la marca"
-                    style={{ flex: 1 }}
-                    required
-                  />
-                  {carBrands.length > 0 && (
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => { setBrandKey(''); setModelKey(''); setVehicle(v => ({ ...v, brand: '', model: '' })); }}
-                      style={{ whiteSpace: 'nowrap' }}
-                    >
-                      Ver lista
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* MODELO */}
-            <div className="field">
-              <label>Modelo</label>
-              {brandKey && brandKey !== '__manual__' && availableModels.length > 0 && modelKey !== '__manual__' ? (
-                <select
-                  value={modelKey}
-                  onChange={e => handleModelChange(e.target.value)}
-                  style={{ background: 'var(--slate-800)', border: '1px solid var(--slate-700)', borderRadius: 8, color: modelKey ? '#fff' : 'var(--slate-400)', padding: '10px 12px', width: '100%', fontFamily: 'inherit', fontSize: 14 }}
-                >
-                  <option value="">— Selecciona un modelo —</option>
-                  {availableModels.map(m => <option key={m.id} value={m.name}>{m.name}</option>)}
-                  <option value="__manual__">Otro modelo…</option>
-                </select>
-              ) : (
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input
-                    value={vehicle.model}
-                    onChange={e => setVehicle(v => ({ ...v, model: e.target.value }))}
-                    placeholder="Escribe el modelo"
-                    style={{ flex: 1 }}
-                  />
-                  {brandKey && brandKey !== '__manual__' && availableModels.length > 0 && (
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => { setModelKey(''); setVehicle(v => ({ ...v, model: '' })); }}
-                      style={{ whiteSpace: 'nowrap' }}
-                    >
-                      Ver lista
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
+          <VehicleFields
+            value={vehicle}
+            onChange={setVehicle}
+            onInteract={() => setSelectedVehicleId('')}
+            requireBrand
+          />
         )}
 
         {valets.length > 0 && (

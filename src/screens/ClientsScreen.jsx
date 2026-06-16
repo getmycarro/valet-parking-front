@@ -4,6 +4,7 @@ import { Icon } from '../components/icons.jsx';
 import { PageHead, SectionHead, Badge, Plate, Modal, Toast, KpiCard, VehicleRow } from '../components/ui.jsx';
 import { normaliseRecord, nextActions, STATUS_META } from '../store.jsx';
 import api from '../lib/api.js';
+import { VehicleFields, plateHasMinLetters } from '../components/vehicleFields.jsx';
 
 const CLIENTS_PAGE_SIZE = 25;
 
@@ -108,11 +109,10 @@ function AddVehicleModal({ open, onClose, ownerId, onSaved }) {
     if (open) { setForm({ plate: '', brand: '', model: '', color: '' }); setErr(null); }
   }, [open]);
 
-  const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
-
   const handleSave = async (e) => {
     e?.preventDefault?.();
     if (!form.plate.trim()) { setErr('La placa es obligatoria'); return; }
+    if (!plateHasMinLetters(form.plate)) { setErr('La placa debe contener al menos 2 caracteres alfabéticos.'); return; }
     setSaving(true);
     setErr(null);
     try {
@@ -144,30 +144,7 @@ function AddVehicleModal({ open, onClose, ownerId, onSaved }) {
       </>}
     >
       <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <div className="field">
-          <label>Placa</label>
-          <input
-            value={form.plate}
-            onChange={e => set('plate', e.target.value.toUpperCase())}
-            placeholder="ABC-123"
-            required
-            style={{ fontFamily: 'var(--font-mono)', textTransform: 'uppercase' }}
-          />
-        </div>
-        <div className="grid-2">
-          <div className="field">
-            <label>Marca <span style={{ color: 'var(--slate-500)', fontWeight: 400 }}>(opcional)</span></label>
-            <input value={form.brand} onChange={e => set('brand', e.target.value)} placeholder="Toyota" />
-          </div>
-          <div className="field">
-            <label>Modelo <span style={{ color: 'var(--slate-500)', fontWeight: 400 }}>(opcional)</span></label>
-            <input value={form.model} onChange={e => set('model', e.target.value)} placeholder="Corolla" />
-          </div>
-        </div>
-        <div className="field">
-          <label>Color <span style={{ color: 'var(--slate-500)', fontWeight: 400 }}>(opcional)</span></label>
-          <input value={form.color} onChange={e => set('color', e.target.value)} placeholder="Blanco" />
-        </div>
+        <VehicleFields value={form} onChange={setForm} />
         <FormError msg={err} />
       </form>
     </Modal>
