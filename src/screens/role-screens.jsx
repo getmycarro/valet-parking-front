@@ -320,12 +320,17 @@ function AttendantDashboard({ user, onLogout }) {
 
   const handleAction = async (vehicle, statusId) => {
     if (statusId === 'paid') {
-      const hasPending = vehicle._raw?.payments?.some(p => p.status === 'PENDING');
-      if (hasPending && !confirm('Este parking tiene un pago sin confirmar, ¿quiere ingresar otro?')) {
+      const hasApproved = vehicle._raw?.payments?.some(p => p.status === 'RECEIVED');
+      if (!hasApproved) {
+        // No hay pago aprobado → abrir modal para registrar uno (se auto-aprueba)
+        const hasPending = vehicle._raw?.payments?.some(p => p.status === 'PENDING');
+        if (hasPending && !confirm('Este parking tiene un pago sin confirmar, ¿quiere ingresar otro?')) {
+          return;
+        }
+        setPaymentTarget(vehicle);
         return;
       }
-      setPaymentTarget(vehicle);
-      return;
+      // Ya tiene pago aprobado → transición directa, sin modal
     }
     setActionLoading(vehicle.id);
     try {
