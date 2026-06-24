@@ -60,7 +60,7 @@ export default function AdminApp() {
       api.get('/auth/me')
         .then(res => {
           const u = res.data.data;
-          setUser({ name: u.name, email: u.email, role: u.role, id: u.id });
+          setUser({ name: u.name, email: u.email, role: u.role, id: u.id, companyId: u.companyId });
           setActive(ROLE_DEFAULT_NAV[u.role] || 'dashboard');
         })
         .catch(() => localStorage.removeItem('gmc_token'));
@@ -100,7 +100,7 @@ export default function AdminApp() {
   else if (active === 'users')     body = <UsersScreen />;
   else if (active === 'clients')        body = <ClientsScreen />;
   else if (active === 'workdays')       body = <WorkdaysScreen user={user} />;
-  else if (active === 'methods')        body = <PaymentMethodsScreen />;
+  else if (active === 'methods')        body = <PaymentMethodsScreen user={user} />;
   else if (active === 'notifications')  body = <NotificationsScreen />;
   else if (active === 'reports')        body = <ReportsScreen />;
   else {

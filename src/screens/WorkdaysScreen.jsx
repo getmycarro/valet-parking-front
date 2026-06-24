@@ -15,8 +15,10 @@ export default function WorkdaysScreen({ user }) {
   const [showCloseModal, setShowCloseModal]   = useState(false);
   const [showOpenModal, setShowOpenModal]     = useState(false);
   const [openPrice, setOpenPrice]             = useState('');
+  const [openCurrency, setOpenCurrency]       = useState('USD');
   const [showPriceModal, setShowPriceModal]   = useState(false);
   const [editPrice, setEditPrice]             = useState('');
+  const [editCurrency, setEditCurrency]       = useState('USD');
   const [priceConfirm, setPriceConfirm]       = useState(false);
   const [closeError, setCloseError]           = useState(null);
   const [showResetModal, setShowResetModal]   = useState(false);
@@ -91,6 +93,7 @@ export default function WorkdaysScreen({ user }) {
 
   const handleOpen = () => {
     setOpenPrice('');
+    setOpenCurrency('USD');
     setShowOpenModal(true);
   };
 
@@ -98,7 +101,8 @@ export default function WorkdaysScreen({ user }) {
     setIsActionLoading(true);
     try {
       const price = parseFloat(openPrice);
-      const payload = openPrice.trim() !== '' && price >= 0 ? { valetPrice: price } : {};
+      const payload = { currency: openCurrency };
+      if (openPrice.trim() !== '' && price >= 0) payload.valetPrice = price;
       await api.post('/workdays/open', payload);
       setShowOpenModal(false);
       setToast('Jornada abierta correctamente');
@@ -112,6 +116,7 @@ export default function WorkdaysScreen({ user }) {
 
   const handleEditPrice = () => {
     setEditPrice(activeWorkday?.valetPrice != null ? String(activeWorkday.valetPrice) : '');
+    setEditCurrency(activeWorkday?.currency === 'EUR' ? 'EUR' : 'USD');
     setPriceConfirm(false);
     setShowPriceModal(true);
   };
@@ -121,14 +126,15 @@ export default function WorkdaysScreen({ user }) {
     setIsActionLoading(true);
     try {
       const price = parseFloat(editPrice);
-      const payload = editPrice.trim() !== '' && price >= 0 ? { valetPrice: price } : {};
+      const payload = { currency: editCurrency };
+      if (editPrice.trim() !== '' && price >= 0) payload.valetPrice = price;
       await api.patch(`/workdays/${activeWorkday.id}/price`, payload);
       setShowPriceModal(false);
       setPriceConfirm(false);
-      setToast('Tarifa de la jornada actualizada');
+      setToast('Jornada actualizada');
       await fetchData();
     } catch (err) {
-      setToast(err.response?.data?.message || 'Error al actualizar la tarifa');
+      setToast(err.response?.data?.message || 'Error al actualizar la jornada');
     } finally {
       setIsActionLoading(false);
     }
@@ -241,9 +247,12 @@ export default function WorkdaysScreen({ user }) {
               }} />
               <span style={{ color: '#22C55E', fontWeight: 600, fontSize: 14, fontFamily: 'var(--font-display)' }}>
                 Jornada activa desde {formatDate(activeWorkday.openedAt)} · {formatTime(activeWorkday.openedAt)}
+                <span style={{ marginLeft: 10, color: '#22C55E', fontWeight: 700 }}>
+                  · Moneda {activeWorkday.currency || 'USD'}
+                </span>
                 {activeWorkday.valetPrice != null && (
                   <span style={{ marginLeft: 10, color: '#22C55E', fontWeight: 700 }}>
-                    · Tarifa ${Number(activeWorkday.valetPrice).toFixed(2)}
+                    · Tarifa {Number(activeWorkday.valetPrice).toFixed(2)} {activeWorkday.currency || 'USD'}
                   </span>
                 )}
               </span>
@@ -257,7 +266,7 @@ export default function WorkdaysScreen({ user }) {
                   disabled={isActionLoading}
                 >
                   <Icon name="wallet" size={14} />
-                  Editar tarifa
+                  Editar jornada
                 </button>
                 <button
                   className="btn btn-danger"
@@ -458,10 +467,10 @@ export default function WorkdaysScreen({ user }) {
       <Modal
         open={showPriceModal}
         onClose={() => setShowPriceModal(false)}
-        title={priceConfirm ? 'Confirmar cambio de tarifa' : 'Editar tarifa de la jornada'}
+        title={priceConfirm ? 'Confirmar cambios de la jornada' : 'Editar jornada'}
         description={priceConfirm
-          ? 'Confirma el cambio del costo fijo del valet parking para la jornada activa.'
-          : 'Modifica el costo fijo en USD. Se usará como monto sugerido en los próximos pagos.'}
+          ? 'Confirma los cambios de moneda y/o tarifa para la jornada activa.'
+          : 'Modifica la moneda de cobranza y el costo fijo. Se usarán en los próximos pagos.'}
         footer={priceConfirm ? (
           <>
             <button
@@ -501,35 +510,50 @@ export default function WorkdaysScreen({ user }) {
         {priceConfirm ? (
           <>
             <p style={{ color: 'var(--admin-text-2)', fontSize: 14, lineHeight: 1.6 }}>
-              La tarifa pasará de{' '}
+              Moneda:{' '}
+              <strong style={{ color: 'var(--admin-text-1)' }}>{activeWorkday?.currency || 'USD'}</strong>{' '}→{' '}
+              <strong style={{ color: 'var(--admin-text-1)' }}>{editCurrency}</strong>.
+              <br />
+              Tarifa:{' '}
               <strong style={{ color: 'var(--admin-text-1)' }}>
-                {activeWorkday?.valetPrice != null ? `$${Number(activeWorkday.valetPrice).toFixed(2)}` : 'Sin tarifa'}
-              </strong>{' '}a{' '}
+                {activeWorkday?.valetPrice != null ? `${Number(activeWorkday.valetPrice).toFixed(2)} ${activeWorkday.currency || 'USD'}` : 'Sin tarifa'}
+              </strong>{' '}→{' '}
               <strong style={{ color: 'var(--admin-text-1)' }}>
-                {editPrice.trim() !== '' ? `$${Number(parseFloat(editPrice)).toFixed(2)}` : 'Sin tarifa'}
+                {editPrice.trim() !== '' ? `${Number(parseFloat(editPrice)).toFixed(2)} ${editCurrency}` : 'Sin tarifa'}
               </strong>.
             </p>
             <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(34,197,94,0.10)', border: '1px solid rgba(34,197,94,0.30)', borderRadius: 8, color: 'var(--admin-text-2)', fontSize: 13, lineHeight: 1.5 }}>
-              Los pagos ya registrados conservan su monto y <strong>no se modificarán</strong>. El nuevo precio solo aplica como monto sugerido en pagos futuros.
+              Los pagos ya registrados conservan su monto y su moneda y <strong>no se modificarán</strong>. La nueva moneda y tarifa solo aplican a los pagos futuros.
             </div>
           </>
         ) : (
-          <div className="field">
-            <label>Costo fijo del valet parking (USD)</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              inputMode="decimal"
-              value={editPrice}
-              onChange={e => setEditPrice(e.target.value)}
-              placeholder="Ej: 5.00 — déjalo vacío para quitar la tarifa"
-              autoFocus
-            />
-            <span style={{ fontSize: 11, color: 'var(--admin-text-3)', marginTop: 4, display: 'block' }}>
-              Si lo dejas vacío, la jornada quedará sin tarifa y el monto del pago arrancará vacío.
-            </span>
-          </div>
+          <>
+            <div className="field" style={{ marginBottom: 14 }}>
+              <label>Moneda de cobranza</label>
+              <select value={editCurrency} onChange={e => setEditCurrency(e.target.value)} autoFocus>
+                <option value="USD">Dólares (USD)</option>
+                <option value="EUR">Euros (EUR)</option>
+              </select>
+              <span style={{ fontSize: 11, color: 'var(--admin-text-3)', marginTop: 4, display: 'block' }}>
+                Determina la tasa usada para calcular los Bs en los próximos pagos.
+              </span>
+            </div>
+            <div className="field">
+              <label>Costo fijo del valet parking ({editCurrency})</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                inputMode="decimal"
+                value={editPrice}
+                onChange={e => setEditPrice(e.target.value)}
+                placeholder="Ej: 5.00 — déjalo vacío para quitar la tarifa"
+              />
+              <span style={{ fontSize: 11, color: 'var(--admin-text-3)', marginTop: 4, display: 'block' }}>
+                Si lo dejas vacío, la jornada quedará sin tarifa y el monto del pago arrancará vacío.
+              </span>
+            </div>
+          </>
         )}
       </Modal>
 
@@ -538,7 +562,7 @@ export default function WorkdaysScreen({ user }) {
         open={showOpenModal}
         onClose={() => setShowOpenModal(false)}
         title="Abrir jornada"
-        description="Define el costo fijo del valet parking para esta jornada (opcional). Se usará como monto sugerido al registrar pagos."
+        description="Elige la moneda de cobranza y el costo fijo del valet parking (opcional). Se usará como monto sugerido al registrar pagos."
         footer={
           <>
             <button
@@ -558,8 +582,18 @@ export default function WorkdaysScreen({ user }) {
           </>
         }
       >
+        <div className="field" style={{ marginBottom: 14 }}>
+          <label>Moneda de cobranza</label>
+          <select value={openCurrency} onChange={e => setOpenCurrency(e.target.value)} autoFocus>
+            <option value="USD">Dólares (USD)</option>
+            <option value="EUR">Euros (EUR)</option>
+          </select>
+          <span style={{ fontSize: 11, color: 'var(--admin-text-3)', marginTop: 4, display: 'block' }}>
+            Determina la tasa usada para calcular los Bs al registrar pagos en esta jornada.
+          </span>
+        </div>
         <div className="field">
-          <label>Costo fijo del valet parking (USD)</label>
+          <label>Costo fijo del valet parking ({openCurrency})</label>
           <input
             type="number"
             min="0"
@@ -568,7 +602,6 @@ export default function WorkdaysScreen({ user }) {
             value={openPrice}
             onChange={e => setOpenPrice(e.target.value)}
             placeholder="Ej: 5.00 — déjalo vacío si no aplica"
-            autoFocus
           />
           <span style={{ fontSize: 11, color: 'var(--admin-text-3)', marginTop: 4, display: 'block' }}>
             Opcional. Si lo dejas vacío, el monto del pago arrancará vacío como hasta ahora.

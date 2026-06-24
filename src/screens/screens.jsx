@@ -47,7 +47,7 @@ function LoginScreen({ onLogin, onBack }) {
 
       const profileRes = await api.get('/auth/me');
       const u = profileRes.data.data;
-      onLogin({ name: u.name, email: u.email, role: u.role, id: u.id });
+      onLogin({ name: u.name, email: u.email, role: u.role, id: u.id, companyId: u.companyId });
     } catch (err) {
       localStorage.removeItem('gmc_token');
       const firebaseErrors = {
@@ -716,10 +716,18 @@ function EmployeesScreen() {
 }
 
 /* ─── PAYMENT METHODS (ADMIN) ───────────────────────────── */
-function PaymentMethodsScreen() {
+const PAYMENT_METHOD_TYPES = ['ZELLE', 'MOBILE_PAYMENT', 'BINANCE', 'CASH', 'CARD'];
+const PM_TYPE_TONE = { ZELLE: 'blue', MOBILE_PAYMENT: 'cyan', BINANCE: 'amber', CASH: 'green', CARD: 'indigo' };
+const EMPTY_METHOD = { name: '', type: 'ZELLE', form: '' };
+
+function PaymentMethodsScreen({ user }) {
+  const cid = user?.companyId;
   const [methods, setMethods] = useState([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
+  const [editing, setEditing] = useState(null); // null | {} (new) | method (edit)
+  const [form, setForm] = useState(EMPTY_METHOD);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!toast) return;
@@ -727,27 +735,81 @@ function PaymentMethodsScreen() {
     return () => clearTimeout(t);
   }, [toast]);
 
-  useEffect(() => {
-    let cancelled = false;
-    api.get('/payments/methods')
-      .then(res => {
-        if (cancelled) return;
-        const raw = res.data.data;
-        setMethods(Array.isArray(raw) ? raw : (raw?.data || []));
-      })
-      .catch(() => { if (!cancelled) setToast('Error al cargar métodos de pago'); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, []);
+  const load = useCallback(async () => {
+    if (!cid) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const res = await api.get(`/companies/${cid}/payment-methods`);
+      const raw = res.data.data;
+      setMethods(Array.isArray(raw) ? raw : (raw?.data || []));
+    } catch {
+      setToast('Error al cargar métodos de pago');
+    } finally {
+      setLoading(false);
+    }
+  }, [cid]);
 
-  const TYPE_TONE = { ZELLE: 'blue', MOBILE_PAYMENT: 'cyan', BINANCE: 'amber', CASH: 'green', CARD: 'indigo' };
+  useEffect(() => { load(); }, [load]);
+
+  const openNew  = () => { setForm(EMPTY_METHOD); setEditing({}); };
+  const openEdit = (m) => { setForm({ name: m.name || '', type: m.type || 'ZELLE', form: m.form || '' }); setEditing(m); };
+
+  const save = async () => {
+    if (!form.name.trim() || !form.form.trim()) { setToast('Nombre y detalle son obligatorios'); return; }
+    setSaving(true);
+    try {
+      const payload = { name: form.name.trim(), type: form.type, form: form.form.trim() };
+      if (editing?.id) {
+        await api.patch(`/companies/${cid}/payment-methods/${editing.id}`, payload);
+        setToast('Método actualizado');
+      } else {
+        await api.post(`/companies/${cid}/payment-methods`, payload);
+        setToast('Método creado');
+      }
+      setEditing(null);
+      await load();
+    } catch (err) {
+      setToast(err.response?.data?.message || 'Error al guardar el método');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const remove = async (m) => {
+    if (!confirm(`¿Eliminar el método "${m.name}"?`)) return;
+    try {
+      await api.delete(`/companies/${cid}/payment-methods/${m.id}`);
+      setToast('Método eliminado');
+      await load();
+    } catch (err) {
+      setToast(err.response?.data?.message || 'Error al eliminar el método');
+    }
+  };
+
+  const activeCount = methods.filter(m => m.isActive).length;
 
   return (
     <div className="page">
-      <PageHead title="Métodos de pago" subtitle="Métodos de pago disponibles en tu compañía" />
+      <PageHead
+        title="Métodos de pago"
+        subtitle="Gestiona los métodos de pago de tu compañía"
+        actions={<button className="btn btn-primary" onClick={openNew} disabled={!cid}><Icon name="plus" size={14} /> Nuevo método</button>}
+      />
+
+      <div className="kpi-grid-3">
+        <KpiCard icon="wallet" tone="blue"  label="Total métodos"  value={methods.length} sub="Registrados en compañía" />
+        <KpiCard icon="check"  tone="green" label="Activos"         value={activeCount}    sub="Disponibles para cobrar" />
+        <KpiCard icon="card"   tone="amber" label="Inactivos"       value={methods.length - activeCount} sub="No disponibles" />
+      </div>
+
       <div className="glass">
         <SectionHead title="Métodos registrados" meta={`${methods.length} métodos`} />
-        {loading ? (
+        {!cid ? (
+          <div className="empty" style={{ padding: 60 }}>
+            <Icon name="wallet" size={42} className="ico" />
+            <p>Tu usuario no tiene una compañía asignada.</p>
+          </div>
+        ) : loading ? (
           <div className="empty" style={{ padding: 60 }}>
             <Icon name="loader" size={32} className="ico" style={{ animation: 'spin 1s linear infinite' }} />
             <p>Cargando métodos…</p>
@@ -755,17 +817,25 @@ function PaymentMethodsScreen() {
         ) : (
           <div className="tbl-wrap">
             <table className="tbl">
-              <thead><tr><th>Nombre</th><th>Tipo</th><th>Detalle</th><th>Estado</th></tr></thead>
+              <thead><tr><th>Nombre</th><th>Tipo</th><th>Detalle</th><th>Estado</th><th></th></tr></thead>
               <tbody>
                 {methods.length === 0 && (
-                  <tr><td colSpan="4"><div className="empty" style={{ padding: 40 }}><Icon name="wallet" size={42} className="ico" /><p>No hay métodos de pago registrados.</p></div></td></tr>
+                  <tr><td colSpan="5"><div className="empty" style={{ padding: 40 }}><Icon name="wallet" size={42} className="ico" /><p>No hay métodos de pago registrados.</p></div></td></tr>
                 )}
                 {methods.map(m => (
                   <tr key={m.id}>
                     <td style={{ fontWeight: 600, color: '#fff' }}>{m.name || '—'}</td>
-                    <td><Badge tone={TYPE_TONE[m.type] || 'slate'}>{PAYMENT_TYPE_LABEL[m.type] || m.type}</Badge></td>
-                    <td style={{ color: 'var(--slate-400)', fontSize: 13 }}>{m.detail || m.accountNumber || '—'}</td>
+                    <td><Badge tone={PM_TYPE_TONE[m.type] || 'slate'}>{PAYMENT_TYPE_LABEL[m.type] || m.type}</Badge></td>
+                    <td style={{ color: 'var(--slate-400)', fontSize: 13 }}>{m.form || '—'}</td>
                     <td><Badge tone={m.isActive ? 'green' : 'slate'}>{m.isActive ? 'Activo' : 'Inactivo'}</Badge></td>
+                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <button className="btn btn-ghost" style={{ padding: '6px 10px' }} onClick={() => openEdit(m)} title="Editar método">
+                        <Icon name="edit" size={14} />
+                      </button>
+                      <button className="btn btn-ghost" style={{ padding: '6px 10px', color: '#F87171' }} onClick={() => remove(m)} title="Eliminar método">
+                        <Icon name="trash" size={14} />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -773,6 +843,31 @@ function PaymentMethodsScreen() {
           </div>
         )}
       </div>
+
+      <Modal
+        open={editing !== null} onClose={() => !saving && setEditing(null)}
+        title={editing?.id ? 'Editar método de pago' : 'Nuevo método de pago'}
+        description="Configura un método de pago para tu compañía"
+        footer={<>
+          <button className="btn btn-secondary" onClick={() => setEditing(null)} disabled={saving}>Cancelar</button>
+          <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? 'Guardando…' : (editing?.id ? 'Guardar cambios' : 'Crear método')}</button>
+        </>}
+      >
+        <div className="grid-2">
+          <div className="field"><label>Nombre</label>
+            <input placeholder="Zelle principal" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+          </div>
+          <div className="field"><label>Tipo</label>
+            <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}>
+              {PAYMENT_METHOD_TYPES.map(t => <option key={t} value={t}>{PAYMENT_TYPE_LABEL[t] || t}</option>)}
+            </select>
+          </div>
+          <div className="field" style={{ gridColumn: '1 / -1' }}><label>Detalle / datos de la cuenta</label>
+            <input placeholder="Ej. correo, teléfono o número de cuenta" value={form.form} onChange={e => setForm(f => ({ ...f, form: e.target.value }))} />
+          </div>
+        </div>
+      </Modal>
+
       <Toast message={toast} />
       <style>{`@keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }`}</style>
     </div>
@@ -792,6 +887,7 @@ function PaymentModal({ open, vehicle, onClose, onDone }) {
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState(null);
   const [exchangeRate, setExchangeRate] = useState(null);
+  const [workdayCurrency, setWorkdayCurrency] = useState('USD');
   const [cameraActive, setCameraActive] = useState(false);
   const fileInputRef = useRef(null);
   const videoRef = useRef(null);
@@ -833,19 +929,30 @@ function PaymentModal({ open, vehicle, onClose, onDone }) {
     setMethodsErr(null);
     setLoadingMethods(true);
     setExchangeRate(null);
+    setWorkdayCurrency('USD');
 
-    fetch('https://ve.dolarapi.com/v1/dolares/oficial')
-      .then(r => r.json())
-      .then(d => setExchangeRate(d.promedio ?? null))
-      .catch(() => {});
+    const fetchRate = (currency) => {
+      const url = currency === 'EUR'
+        ? 'https://ve.dolarapi.com/v1/euros/oficial'
+        : 'https://ve.dolarapi.com/v1/dolares/oficial';
+      fetch(url)
+        .then(r => r.json())
+        .then(d => setExchangeRate(d.promedio ?? null))
+        .catch(() => {});
+    };
 
-    // Pre-cargar el monto con la tarifa fija de la jornada activa (editable)
+    // La moneda de cobranza la define la jornada activa; según ella se usa la
+    // tasa del dólar o del euro. También pre-carga el monto con la tarifa fija.
     api.get('/workdays/active')
       .then(res => {
-        const price = res.data.data?.valetPrice;
+        const wd = res.data.data;
+        const price = wd?.valetPrice;
         if (price != null) setAmountUSD(String(price));
+        const currency = wd?.currency === 'EUR' ? 'EUR' : 'USD';
+        setWorkdayCurrency(currency);
+        fetchRate(currency);
       })
-      .catch(() => {});
+      .catch(() => fetchRate('USD'));
 
     api.get('/payments/methods')
       .then(res => {
@@ -924,6 +1031,7 @@ function PaymentModal({ open, vehicle, onClose, onDone }) {
         parkingRecordId: vehicle.id,
         paymentMethodId: selectedMethodId,
         amountUSD: parseFloat(amountUSD),
+        currency: workdayCurrency,
         fee: 0,
         validation: 'AUTOMATIC',
       };
@@ -992,7 +1100,7 @@ function PaymentModal({ open, vehicle, onClose, onDone }) {
           </div>
           {exchangeRate && (
             <div style={{ fontSize: 12, color: 'var(--slate-400)', marginTop: -6, marginBottom: 2 }}>
-              Tasa: Bs {exchangeRate.toFixed(2)} / $1
+              Tasa: Bs {exchangeRate.toFixed(2)} / 1 {workdayCurrency}
               {parseFloat(amountUSD) > 0 && (
                 <> · <strong style={{ color: 'var(--slate-300)' }}>
                   Bs {(parseFloat(amountUSD) * exchangeRate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
