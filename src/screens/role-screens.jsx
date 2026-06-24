@@ -14,6 +14,8 @@ function CompaniesScreen() {
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [toast, setToast] = useState(null);
+  const [form, setForm] = useState({ name: '', photoUrl: '' });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!toast) return;
@@ -21,18 +23,41 @@ function CompaniesScreen() {
     return () => clearTimeout(t);
   }, [toast]);
 
-  useEffect(() => {
-    let cancelled = false;
-    api.get('/companies')
-      .then(res => {
-        if (cancelled) return;
-        const raw = res.data.data;
-        setCompanies(Array.isArray(raw) ? raw : (raw?.data || []));
-      })
-      .catch(() => { if (!cancelled) setToast('Error al cargar compañías'); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/companies');
+      const raw = res.data.data;
+      setCompanies(Array.isArray(raw) ? raw : (raw?.data || []));
+    } catch {
+      setToast('Error al cargar compañías');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const openModal = () => { setForm({ name: '', photoUrl: '' }); setAdding(true); };
+
+  const createCompany = async () => {
+    if (!form.name.trim()) { setToast('El nombre es obligatorio'); return; }
+    setSaving(true);
+    try {
+      await api.post('/companies', {
+        name: form.name.trim(),
+        photoUrl: form.photoUrl.trim() || undefined,
+        userIds: [],
+      });
+      setAdding(false);
+      setToast('Compañía creada');
+      await load();
+    } catch (err) {
+      setToast(err.response?.data?.message || 'Error al crear la compañía');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const totalRevenue = companies.reduce((s, c) => s + (c.revenue || 0), 0);
   const activeCount  = companies.filter(c => c.status === 'ACTIVE' || c.status === 'active').length;
@@ -49,7 +74,7 @@ function CompaniesScreen() {
       <PageHead
         title="Compañías"
         subtitle="Vista global · todas las cuentas conectadas a la plataforma"
-        actions={<button className="btn btn-primary" onClick={() => setAdding(true)}><Icon name="plus" size={14} /> Nueva compañía</button>}
+        actions={<button className="btn btn-primary" onClick={openModal}><Icon name="plus" size={14} /> Nueva compañía</button>}
       />
 
       <div className="kpi-grid-4">
@@ -109,25 +134,21 @@ function CompaniesScreen() {
       </div>
 
       <Modal
-        open={adding} onClose={() => setAdding(false)}
+        open={adding} onClose={() => !saving && setAdding(false)}
         title="Nueva compañía"
-        description="Registra una nueva compañía en la plataforma"
+        description="Registra una nueva compañía en la plataforma. Luego podrás crear su administrador desde Usuarios."
         footer={<>
-          <button className="btn btn-secondary" onClick={() => setAdding(false)}>Cancelar</button>
-          <button className="btn btn-primary" onClick={() => setAdding(false)}>Crear compañía</button>
+          <button className="btn btn-secondary" onClick={() => setAdding(false)} disabled={saving}>Cancelar</button>
+          <button className="btn btn-primary" onClick={createCompany} disabled={saving}>{saving ? 'Creando…' : 'Crear compañía'}</button>
         </>}
       >
         <div className="grid-2">
-          <div className="field"><label>Nombre</label><input placeholder="Hotel Premium" /></div>
-          <div className="field"><label>RIF</label><input placeholder="J-12345678-9" /></div>
-          <div className="field" style={{ gridColumn: '1 / -1' }}><label>Plan</label>
-            <select>
-              <option value="FLAT_RATE">Flat Rate</option>
-              <option value="PER_VEHICLE">Per Vehicle</option>
-              <option value="MIXED">Mixed</option>
-            </select>
+          <div className="field" style={{ gridColumn: '1 / -1' }}><label>Nombre</label>
+            <input placeholder="Hotel Premium" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
           </div>
-          <div className="field" style={{ gridColumn: '1 / -1' }}><label>Email contacto</label><input type="email" placeholder="contacto@empresa.com" /></div>
+          <div className="field" style={{ gridColumn: '1 / -1' }}><label>Foto / Logo (URL, opcional)</label>
+            <input placeholder="https://…" value={form.photoUrl} onChange={e => setForm(f => ({ ...f, photoUrl: e.target.value }))} />
+          </div>
         </div>
       </Modal>
 
@@ -139,11 +160,17 @@ function CompaniesScreen() {
 
 /* ─── USERS (super_admin) ─────────────────────────────── */
 
+const EMPTY_ADMIN = { name: '', email: '', password: '', idNumber: '', phone: '', companyId: '' };
+
 function UsersScreen() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
   const [toast, setToast] = useState(null);
+  const [companies, setCompanies] = useState([]);
+  const [adding, setAdding] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState(EMPTY_ADMIN);
 
   useEffect(() => {
     if (!toast) return;
@@ -151,18 +178,70 @@ function UsersScreen() {
     return () => clearTimeout(t);
   }, [toast]);
 
-  useEffect(() => {
-    let cancelled = false;
-    api.get('/users')
-      .then(res => {
-        if (cancelled) return;
-        const raw = res.data.data;
-        setUsers(Array.isArray(raw) ? raw : (raw?.data || []));
-      })
-      .catch(() => { if (!cancelled) setToast('Error al cargar usuarios'); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/users');
+      const raw = res.data.data;
+      setUsers(Array.isArray(raw) ? raw : (raw?.data || []));
+    } catch {
+      setToast('Error al cargar usuarios');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const openModal = async () => {
+    setForm(EMPTY_ADMIN);
+    setAdding(true);
+    try {
+      const res = await api.get('/companies');
+      const raw = res.data.data;
+      setCompanies(Array.isArray(raw) ? raw : (raw?.data || []));
+    } catch {
+      setToast('Error al cargar compañías');
+    }
+  };
+
+  const deleteUser = async (u) => {
+    if (!confirm(`¿Eliminar a ${u.name || u.email}? Perderá el acceso al panel.`)) return;
+    try {
+      await api.delete(`/users/${u.id}`);
+      setToast('Usuario eliminado');
+      await load();
+    } catch (err) {
+      setToast(err.response?.data?.message || 'Error al eliminar el usuario');
+    }
+  };
+
+  const createAdmin = async () => {
+    if (!form.name.trim() || !form.email.trim() || !form.password) {
+      setToast('Nombre, email y clave son obligatorios'); return;
+    }
+    if (form.password.length < 6) { setToast('La clave debe tener al menos 6 caracteres'); return; }
+    if (!form.companyId) { setToast('Selecciona una compañía'); return; }
+    setSaving(true);
+    try {
+      await api.post('/users/admin', {
+        name: form.name.trim(),
+        email: form.email.trim(),
+        password: form.password,
+        role: 'ADMIN',
+        idNumber: form.idNumber.trim() || undefined,
+        phone: form.phone.trim() || undefined,
+        companyIds: [form.companyId],
+      });
+      setAdding(false);
+      setToast('Administrador creado');
+      await load();
+    } catch (err) {
+      setToast(err.response?.data?.message || 'Error al crear el administrador');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const ROLE_TONE  = { SUPER_ADMIN: 'blue', ADMIN: 'slate', MANAGER: 'amber', ATTENDANT: 'indigo', CLIENT: 'green' };
   const ROLE_LABEL = { SUPER_ADMIN: 'Super Admin', ADMIN: 'Administrador', MANAGER: 'Gerente', ATTENDANT: 'Encargado', CLIENT: 'Cliente' };
@@ -174,7 +253,7 @@ function UsersScreen() {
       <PageHead
         title="Usuarios"
         subtitle="Todos los usuarios con acceso al sistema · administradores y gerentes"
-        actions={<button className="btn btn-primary"><Icon name="plus" size={14} /> Invitar usuario</button>}
+        actions={<button className="btn btn-primary" onClick={openModal}><Icon name="plus" size={14} /> Crear administrador</button>}
       />
 
       <div className="glass">
@@ -220,7 +299,9 @@ function UsersScreen() {
                       {u.createdAt ? new Date(u.createdAt).toLocaleDateString('es-VE') : '—'}
                     </td>
                     <td style={{ textAlign: 'right' }}>
-                      <button className="btn btn-ghost" style={{ padding: '6px 10px' }}><Icon name="edit" size={14} /></button>
+                      {u.role !== 'SUPER_ADMIN' && (
+                        <button className="btn btn-ghost" style={{ padding: '6px 10px' }} title="Eliminar usuario" onClick={() => deleteUser(u)}><Icon name="trash" size={14} /></button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -229,6 +310,40 @@ function UsersScreen() {
           </div>
         )}
       </div>
+
+      <Modal
+        open={adding} onClose={() => !saving && setAdding(false)}
+        title="Crear administrador"
+        description="Crea el administrador de una compañía. Tú defines su clave de acceso."
+        footer={<>
+          <button className="btn btn-secondary" onClick={() => setAdding(false)} disabled={saving}>Cancelar</button>
+          <button className="btn btn-primary" onClick={createAdmin} disabled={saving}>{saving ? 'Creando…' : 'Crear administrador'}</button>
+        </>}
+      >
+        <div className="grid-2">
+          <div className="field"><label>Nombre</label>
+            <input placeholder="Juan Pérez" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+          </div>
+          <div className="field"><label>Cédula (opcional)</label>
+            <input placeholder="V-12345678" value={form.idNumber} onChange={e => setForm(f => ({ ...f, idNumber: e.target.value }))} />
+          </div>
+          <div className="field"><label>Email</label>
+            <input type="email" placeholder="admin@empresa.com" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+          </div>
+          <div className="field"><label>Teléfono (opcional)</label>
+            <input placeholder="0412-1234567" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
+          </div>
+          <div className="field"><label>Clave</label>
+            <input type="password" placeholder="Mínimo 6 caracteres" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
+          </div>
+          <div className="field"><label>Compañía</label>
+            <select value={form.companyId} onChange={e => setForm(f => ({ ...f, companyId: e.target.value }))}>
+              <option value="">Selecciona…</option>
+              {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+        </div>
+      </Modal>
 
       <Toast message={toast} />
       <style>{`@keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }`}</style>
